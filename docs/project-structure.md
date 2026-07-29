@@ -43,7 +43,8 @@ packages.
 | `bags/` | `scripts/record-bag.sh` | ignored, created on demand |
 | `maps/` | `scripts/save-octomap.sh` | ignored, created on demand |
 | `logs/` | hardware validation commands | ignored, created on demand |
-| `exports/` | optional user exports | ignored |
+| `exports/manuals/*.pdf` | reviewed project manuals | three named PDFs tracked |
+| Other `exports/` content | optional user exports | ignored |
 
 Python bytecode, test caches, editor state, and local credentials are also
 ignored.

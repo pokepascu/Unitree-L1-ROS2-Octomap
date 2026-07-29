@@ -46,7 +46,8 @@ The following paths are generated locally and are deliberately not versioned:
 - `ros2_ws/src/unilidar_sdk/` and `ros2_ws/src/octomap_mapping/` are recreated
   from `config/dependencies.repos`;
 - `ros2_ws/build/`, `ros2_ws/install/`, and `ros2_ws/log/` are colcon outputs;
-- `bags/`, `maps/`, `logs/`, and `exports/` contain runtime data.
+- `bags/`, `maps/`, `logs/`, and non-manual `exports/` contain runtime data.
+  The three reviewed PDFs in `exports/manuals/` are tracked publications.
 
 There must never be a `build`, `install`, or `log` directory inside
 `ros2_ws/src`. Always invoke colcon from `ros2_ws`, or use
@@ -178,6 +179,11 @@ pose estimator.
   hardware-dependent verdicts.
 - [Version lock](docs/versions-lock.md): pinned images, packages, and commits.
 - [Technical sources](docs/sources.md): authoritative upstream references.
+- [Engineering manual (PDF)](exports/manuals/UNITREE_L1_ENGINEERING_MANUAL.pdf)
+- [First-run tutorial (PDF)](exports/manuals/UNITREE_L1_FIRST_RUN_TUTORIAL.pdf)
+- [File organization reference (PDF)](exports/manuals/UNITREE_L1_FILE_ORGANIZATION_REFERENCE.pdf)
+- [Manual sources and rendering](docs/manuals/README.md)
 
 Generated reports, raw logs, bags, maps, build trees, and copied upstream
-manuals are intentionally excluded from the repository.
+manuals are intentionally excluded from the repository. The three
+project-authored PDFs linked above are the publication exception.

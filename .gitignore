@@ -11,7 +11,12 @@ compile_commands.json
 
 # Runtime data and generated evidence.
 /bags/
-/exports/
+/exports/*
+!/exports/manuals/
+/exports/manuals/*
+!/exports/manuals/UNITREE_L1_ENGINEERING_MANUAL.pdf
+!/exports/manuals/UNITREE_L1_FIRST_RUN_TUTORIAL.pdf
+!/exports/manuals/UNITREE_L1_FILE_ORGANIZATION_REFERENCE.pdf
 /logs/
 /maps/
 *.log
