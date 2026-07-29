@@ -1,0 +1,188 @@
+/l1_monitor
+/rviz2
+/transform_listener_impl_5f9ec53fab30
+/unitree_lidar_ros2_node
+/diagnostics [diagnostic_msgs/msg/DiagnosticArray]
+/parameter_events [rcl_interfaces/msg/ParameterEvent]
+/rosout [rcl_interfaces/msg/Log]
+/tf [tf2_msgs/msg/TFMessage]
+/tf_static [tf2_msgs/msg/TFMessage]
+/unilidar/cloud [sensor_msgs/msg/PointCloud2]
+/unilidar/imu [sensor_msgs/msg/Imu]
+String value is: /dev/unitree_lidar
+Type: sensor_msgs/msg/PointCloud2
+
+Publisher count: 1
+
+Node name: unitree_lidar_ros2_node
+Node namespace: /
+Topic type: sensor_msgs/msg/PointCloud2
+Endpoint type: PUBLISHER
+GID: 01.0f.23.d4.18.00.ae.35.00.00.00.00.00.00.12.03.00.00.00.00.00.00.00.00
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Subscription count: 2
+
+Node name: l1_monitor
+Node namespace: /
+Topic type: sensor_msgs/msg/PointCloud2
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.23.d4.1a.00.35.28.00.00.00.00.00.00.11.04.00.00.00.00.00.00.00.00
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Node name: rviz2
+Node namespace: /
+Topic type: sensor_msgs/msg/PointCloud2
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.23.d4.1c.00.ba.ac.00.00.00.00.00.00.1c.04.00.00.00.00.00.00.00.00
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Type: sensor_msgs/msg/Imu
+
+Publisher count: 1
+
+Node name: unitree_lidar_ros2_node
+Node namespace: /
+Topic type: sensor_msgs/msg/Imu
+Endpoint type: PUBLISHER
+GID: 01.0f.23.d4.18.00.ae.35.00.00.00.00.00.00.13.03.00.00.00.00.00.00.00.00
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+Subscription count: 1
+
+Node name: l1_monitor
+Node namespace: /
+Topic type: sensor_msgs/msg/Imu
+Endpoint type: SUBSCRIPTION
+GID: 01.0f.23.d4.1a.00.35.28.00.00.00.00.00.00.12.04.00.00.00.00.00.00.00.00
+QoS profile:
+  Reliability: RELIABLE
+  History (Depth): UNKNOWN
+  Durability: VOLATILE
+  Lifespan: Infinite
+  Deadline: Infinite
+  Liveliness: AUTOMATIC
+  Liveliness lease duration: Infinite
+
+MESSAGE_PASS topic=/unilidar/cloud type=sensor_msgs/msg/PointCloud2
+MESSAGE_PASS topic=/unilidar/imu type=sensor_msgs/msg/Imu
+average rate: 8.010
+	min: 0.116s max: 0.138s std dev: 0.00601s window: 10
+average rate: 8.074
+	min: 0.114s max: 0.139s std dev: 0.00663s window: 19
+average rate: 8.041
+	min: 0.114s max: 0.140s std dev: 0.00675s window: 27
+average rate: 7.977
+	min: 0.114s max: 0.143s std dev: 0.00703s window: 35
+average rate: 7.967
+	min: 0.113s max: 0.143s std dev: 0.00754s window: 43
+average rate: 7.971
+	min: 0.113s max: 0.143s std dev: 0.00723s window: 51
+average rate: 8.079
+	min: 0.094s max: 0.143s std dev: 0.00870s window: 60
+average rate: 8.065
+	min: 0.094s max: 0.143s std dev: 0.00854s window: 68
+average rate: 8.082
+	min: 0.094s max: 0.143s std dev: 0.00850s window: 77
+average rate: 8.095
+	min: 0.094s max: 0.143s std dev: 0.00855s window: 86
+RATE_PASS topic=/unilidar/cloud
+average rate: 218.627
+	min: 0.001s max: 0.009s std dev: 0.00162s window: 220
+average rate: 218.750
+	min: 0.001s max: 0.010s std dev: 0.00160s window: 439
+average rate: 218.365
+	min: 0.001s max: 0.012s std dev: 0.00162s window: 657
+average rate: 215.916
+	min: 0.001s max: 0.012s std dev: 0.00168s window: 866
+average rate: 215.287
+	min: 0.001s max: 0.012s std dev: 0.00170s window: 1080
+average rate: 213.871
+	min: 0.001s max: 0.012s std dev: 0.00173s window: 1287
+average rate: 214.255
+	min: 0.001s max: 0.012s std dev: 0.00175s window: 1504
+average rate: 214.329
+	min: 0.001s max: 0.012s std dev: 0.00175s window: 1720
+average rate: 214.223
+	min: 0.001s max: 0.015s std dev: 0.00177s window: 1934
+average rate: 215.061
+	min: 0.001s max: 0.015s std dev: 0.00175s window: 2158
+RATE_PASS topic=/unilidar/imu
+header:
+  stamp:
+    sec: 1784225594
+    nanosec: 59972361
+  frame_id: ''
+status:
+- level: "\0"
+  name: unitree_l1/cloud
+  message: stream healthy
+  hardware_id: unitree_l1
+  values:
+  - key: received
+    value: '16804'
+  - key: frequency_hz
+    value: '8.166'
+  - key: arrival_age_sec
+    value: '0.112'
+  - key: header_age_sec
+    value: '0.229'
+  - key: frame_id
+    value: unilidar_lidar
+  - key: non_monotonic_stamps
+    value: '0'
+  - key: zero_stamps
+    value: '0'
+  - key: point_count
+    value: '2142'
+  - key: fields
+    value: x,y,z,intensity,ring,time
+- level: "\0"
+  name: unitree_l1/imu
+  message: stream healthy
+  hardware_id: unitree_l1
+  values:
+  - key: received
+    value: '444004'
+  - key: frequency_hz
+    value: '217.788'
+  - key: arrival_age_sec
+    value: '0.001'
+  - key: header_age_sec
+    value: '0.003'
+  - key: frame_id
+    value: unilidar_imu
+  - key: non_monotonic_stamps
+    value: '0'
+  - key: zero_stamps
+    value: '0'
+---
+LIDAR_DATA_VALIDATION_PASS

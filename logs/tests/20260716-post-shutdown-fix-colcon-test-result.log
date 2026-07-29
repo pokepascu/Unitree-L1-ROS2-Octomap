@@ -1,0 +1,6 @@
+ Container unitree-l1-dev-run-6f8c242843ed Creating 
+ Container unitree-l1-dev-run-6f8c242843ed Created 
+build/l1_bringup/pytest.xml: 3 tests, 0 errors, 0 failures, 0 skipped
+build/l1_monitor/pytest.xml: 5 tests, 0 errors, 0 failures, 0 skipped
+
+Summary: 8 tests, 0 errors, 0 failures, 0 skipped

@@ -1,0 +1,10 @@
+Opening ROS 2 shell: gui=true lidar=/dev/ttyUSB0
+ Container unitree-l1-dev-run-e2502e2df832 Creating 
+ Container unitree-l1-dev-run-e2502e2df832 Created 
+
+ROS 2 Humble project shell ready.
+Workspace: /workspace/ros2_ws
+Build:     colcon build
+Activate:  source install/setup.bash
+LiDAR:     /dev/unitree_lidar
+
