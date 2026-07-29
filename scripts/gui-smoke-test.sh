@@ -6,8 +6,8 @@ export HOST_UID="$(id -u)"
 export HOST_GID="$(id -g)"
 export VIDEO_GID="$(stat -Lc '%g' /dev/dri/card0)"
 export RENDER_GID="$(stat -Lc '%g' /dev/dri/renderD128)"
-: "${DISPLAY:?DISPLAY doit désigner la session graphique}"
-: "${XAUTHORITY:?XAUTHORITY doit pointer vers le cookie X11}"
+: "${DISPLAY:?DISPLAY must identify the graphical session}"
+: "${XAUTHORITY:?XAUTHORITY must point to the graphical session X11 cookie}"
 test -r "${XAUTHORITY}"
 
 docker compose \

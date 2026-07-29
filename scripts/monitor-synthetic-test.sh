@@ -3,8 +3,17 @@ set -euo pipefail
 
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export HOST_UID="$(id -u)" HOST_GID="$(id -g)"
+test_domain="${MONITOR_TEST_ROS_DOMAIN_ID:-187}"
 
-docker compose -f "${project_root}/docker/compose.yaml" run --rm dev bash -lc '
+[[ "${test_domain}" =~ ^[0-9]+$ ]] && ((test_domain <= 232)) || {
+  printf 'MONITOR_TEST_ROS_DOMAIN_ID must be an integer from 0 to 232.\n' >&2
+  exit 2
+}
+
+docker compose -f "${project_root}/docker/compose.yaml" run --rm \
+  -e ROS_DOMAIN_ID="${test_domain}" \
+  -e ROS_LOCALHOST_ONLY=1 \
+  dev bash -lc '
   /workspace/scripts/assert-ros-container.sh
   source /workspace/ros2_ws/install/setup.bash
   set -eo pipefail

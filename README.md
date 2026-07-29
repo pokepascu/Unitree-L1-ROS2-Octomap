@@ -1,219 +1,183 @@
-# Unitree 4D LiDAR L1 — ROS 2 Humble
+# Unitree 4D LiDAR L1 — ROS 2 Humble and OctoMap
 
-Environnement reproductible pour compiler, lancer, contrôler et enregistrer les
-données du Unitree 4D LiDAR L1 sous ROS 2 Humble, sans installer ROS sur l’hôte
-Ubuntu 24.04.
+Reproducible Docker environment for building, running, visualising, recording,
+and mapping Unitree L1 data with ROS 2 Humble. The Ubuntu 24.04 host remains free
+of ROS packages; the complete ROS stack runs in an Ubuntu 22.04 container.
 
-## État actuel
+## Current status
 
-- Hôte inventorié : Ubuntu 24.04.2 LTS, `x86_64`.
-- Docker et Docker Compose opérationnels.
-- Environnement cible : Ubuntu 22.04 Jammy + ROS 2 Humble dans Docker.
-- SDK Unitree figé : `v1.0.16`, commit
+- Unitree UniLiDAR SDK `v1.0.16` is pinned to commit
   `1bd7d95d8ab7ce7a22058d2bb07e39fd62612aa6`.
-- Image Humble construite et pilote compilé contre PCL 1.12 sans patch fournisseur.
-- Paquet `l1_monitor` compilé et testé : diagnostics cloud/IMU sur `/diagnostics`.
-- X11, accélération OpenGL et démarrage contrôlé de RViz2 validés sans capteur.
-- LiDAR réel validé : cloud ~8–10 Hz, IMU ~210–250 Hz et rosbag2 de référence.
-- OctoMap 2.3.1 compilé et relié au cloud réel par `l1_octomap_bringup`.
-- Carte de banc non vide validée ; la cartographie mobile/Point-LIO reste à faire.
+- OctoMap mapping `2.3.1` is pinned to commit
+  `f79da9a9a1fcdf82e72dab4df288d6cc27c6e163`.
+- The L1 cloud, IMU, RViz2, rosbag2, and stationary-sensor OctoMap pipeline have
+  been validated with real hardware.
+- Mobile mapping still requires a dynamic pose source such as odometry or SLAM.
+  OctoMap creates the occupancy map; it does not estimate the robot pose.
 
-## Architecture
+## Project structure
 
 ```text
-Ubuntu 24.04 (hôte)
-└── Docker Ubuntu 22.04 + ROS 2 Humble
-    └── ros2_ws
-        ├── unilidar_sdk (source fournisseur non modifiée)
-        ├── octomap_mapping (source externe figée)
-        ├── l1_bringup (lancement configurable du projet)
-        └── l1_octomap_bringup (adaptation et RViz OctoMap)
+.
+├── config/
+│   └── dependencies.repos       # pinned third-party repositories
+├── docker/
+│   ├── Dockerfile               # Ubuntu 22.04 + ROS 2 Humble image
+│   ├── compose.yaml             # base development service
+│   ├── compose.gui.yaml         # opt-in X11 and DRI access
+│   ├── compose.lidar.yaml       # opt-in serial-device access
+│   └── entrypoint.sh
+├── docs/                        # concise design, hardware, and validation docs
+├── ros2_ws/
+│   ├── colcon_defaults.yaml     # the six permitted ROS 2 packages
+│   └── src/
+│       ├── l1_bringup/          # configurable driver launch and RViz profile
+│       ├── l1_monitor/          # cloud and IMU diagnostics
+│       └── l1_octomap_bringup/  # OctoMap launch, configuration, and RViz
+├── scripts/                     # executable setup and runtime commands
+├── .dockerignore
+├── .gitignore
+├── LICENSE
+└── README.md
 ```
 
-Le Compose principal fonctionne sans LiDAR. Le fichier
-`docker/compose.lidar.yaml` ajoute explicitement le périphérique série seulement
-lorsqu’il a été identifié sur l’hôte.
+The following paths are generated locally and are deliberately not versioned:
 
-## Frontière Docker obligatoire
+- `ros2_ws/src/unilidar_sdk/` and `ros2_ws/src/octomap_mapping/` are recreated
+  from `config/dependencies.repos`;
+- `ros2_ws/build/`, `ros2_ws/install/`, and `ros2_ws/log/` are colcon outputs;
+- `bags/`, `maps/`, `logs/`, and `exports/` contain runtime data.
 
-Ubuntu 24.04 sert uniquement d'hôte Docker, de serveur d'affichage X11 et de
-passerelle vers le GPU et le port série. Les exécutables `ros2`, le pilote L1,
-OctoMap et `rviz2` tournent dans l'image Ubuntu 22.04 + ROS 2 Humble. Une fenêtre
-RViz visible sur le bureau Ubuntu ne signifie donc pas que RViz tourne sur
-l'hôte : seul son affichage traverse le socket X11.
+There must never be a `build`, `install`, or `log` directory inside
+`ros2_ws/src`. Always invoke colcon from `ros2_ws`, or use
+`./scripts/workspace-build.sh`. The build wrapper and repository hygiene checks
+scan recursively for accidental generated output under `src`.
 
-Chaque wrapper ROS appelle maintenant `assert-ros-container.sh`, qui refuse
-l'exécution hors Docker et vérifie `/.dockerenv`, Ubuntu 22.04, ROS Humble et
-les binaires sous `/opt/ros/humble`. Les trois launch files du projet vérifient
-aussi `/.dockerenv`, de sorte qu'un lancement direct qui contournerait les
-wrappers est refusé. Après un lancement graphique, la preuve utilisateur est :
+## Requirements
+
+- Docker Engine with Docker Compose;
+- an X11 session and `/dev/dri` for RViz2;
+- the Unitree adapter and a separately powered L1 for live operation.
+
+Do not install ROS 2 Humble on the Ubuntu 24.04 host. Do not use
+`privileged: true`, `chmod 777`, or a global `xhost +`.
+
+## Build
+
+From the repository root:
+
+```bash
+./scripts/docker-build.sh
+./scripts/workspace-build.sh
+./scripts/smoke-test.sh
+```
+
+`workspace-build.sh` fetches and verifies the pinned dependencies before
+building. To fetch them without compiling:
+
+```bash
+./scripts/fetch-dependencies.sh
+```
+
+To work interactively inside the Humble container:
+
+```bash
+./scripts/docker-shell.sh --no-gui --no-lidar
+```
+
+The explicit flags keep build-only work independent of X11, DRI, and hardware.
+Use `./scripts/docker-shell.sh --help` for opt-in GUI and LiDAR access.
+
+The Compose environment sets `COLCON_DEFAULTS_FILE` to the workspace
+configuration. From `/workspace/ros2_ws`, plain colcon commands therefore
+discover only the intended ROS 2 packages:
+
+```bash
+colcon list
+colcon build
+source install/setup.bash
+```
+
+## Docker-only runtime
+
+ROS 2, the Unitree driver, OctoMap, and RViz2 run inside Docker. Only the X11
+socket, DRI devices, and the selected serial device cross the container
+boundary. Every runtime wrapper calls `scripts/assert-ros-container.sh`; the
+project launch files enforce the same boundary.
+
+After starting a graphical workflow, verify the process location with:
 
 ```bash
 ./scripts/verify-docker-only.sh
 ```
 
-Les verdicts attendus sont `HOST_NATIVE_RVIZ_ABSENT` et
-`DOCKER_ONLY_PIPELINE_PASS`, accompagnés de la ligne du processus RViz issue de
-`docker top`. Ne jamais lancer `rviz2`, `ros2 launch` ou
-`source /opt/ros/...` directement au prompt hôte `isr@...`.
+The expected verdicts include `HOST_NATIVE_RVIZ_ABSENT` and
+`DOCKER_ONLY_PIPELINE_PASS`.
 
-## Préparation
+## Live LiDAR
 
-```bash
-cd ~/unitree_l1_project
-./scripts/docker-build.sh
-./scripts/fetch-dependencies.sh
-./scripts/workspace-build.sh
-./scripts/smoke-test.sh
-```
-
-`workspace-build.sh` vérifie aussi automatiquement la présence et le commit du SDK.
-
-Pour ouvrir un shell Humble avec accès graphique et détection automatique du
-LiDAR connecté :
-
-```bash
-./scripts/docker-shell.sh
-```
-
-Depuis `/workspace/ros2_ws`, la commande simple suivante compile uniquement les
-six paquets ROS 2 autorisés :
-
-```bash
-colcon build
-source install/setup.bash
-```
-
-Pour tester l’accès X11 avant RViz2 :
-
-```bash
-./scripts/gui-smoke-test.sh
-```
-
-Les commandes matérielles ne doivent être utilisées qu’après identification du
-périphérique avec `./scripts/check-lidar.sh`.
-
-## Lorsque le L1 sera connecté
-
-La procédure complète et les précautions électriques sont dans
-`docs/hardware-runbook.md`. Le chemin nominal est :
+Read [the hardware runbook](docs/hardware-runbook.md) before powering or wiring
+the sensor. The normal validation sequence is:
 
 ```bash
 ./scripts/check-lidar.sh
 START_RVIZ=false ./scripts/lidar-launch.sh
-# Dans un second terminal :
+```
+
+In a second terminal:
+
+```bash
 ./scripts/lidar-validate.sh
 ```
 
-Après validation des messages, relancer avec `START_RVIZ=true`, puis enregistrer
-un essai borné :
+After message and frequency validation, restart with RViz2:
+
+```bash
+START_RVIZ=true ./scripts/lidar-launch.sh
+```
+
+Record a bounded sample:
 
 ```bash
 BAG_LABEL=validation BAG_DURATION_SEC=30 ./scripts/record-bag.sh
 ```
 
-Pour une carte OctoMap de banc avec le LiDAR parfaitement immobile :
+The `bags/` and `logs/` directories are created on demand and remain ignored by
+Git.
 
-```bash
-./scripts/docker-shell.sh
-# Dans Docker :
-ros2 launch l1_octomap_bringup unitree_l1_octomap.launch.py \
-  static_sensor:=true rviz:=true
-```
+## OctoMap
 
-Si le runtime nommé `unitree_l1_runtime` est déjà lancé par
-`scripts/lidar-launch.sh`, la commande hôte courte suivante démarre uniquement
-la couche OctoMap et RViz2 sans guillemets à recopier :
+For a perfectly stationary sensor, start the live stack and then:
 
 ```bash
 OCTOMAP_RVIZ=true ./scripts/octomap-launch.sh
-```
-
-Pendant la cartographie, une vérification automatique confirme que la carte
-binaire et les voxels occupés sont non vides :
-
-```bash
-./scripts/verify-docker-only.sh
 ./scripts/evaluate-octomap.sh
+./scripts/save-octomap.sh my_room_01.bt
 ```
 
-Pour sauvegarder avec les contrôles du projet, puis rouvrir la carte sans le
-LiDAR :
+Inspect or reopen a saved map:
 
 ```bash
-./scripts/save-octomap.sh my_room_01.bt
 ./scripts/inspect-octomap.sh my_room_01.bt
 ./scripts/view-octomap.sh my_room_01.bt
 ```
 
-La commande officielle montrée dans le README OctoMap est appelée par
-`save-octomap.sh`. Le texte `(path for saving octomap)` est un emplacement à
-remplacer, et non du texte à saisir. Le tutoriel OctoMap donne aussi la variante
-directe complète dans Docker.
+Do not use the stationary transform while the sensor or robot is moving. With
+the host wrapper, set `STATIC_SENSOR=false`; with a direct ROS launch, pass
+`static_sensor:=false`. Both modes require a dynamic transform from the chosen
+pose estimator.
 
-Ne pas utiliser ce TF statique si le capteur bouge. Un robot mobile doit lancer
-`static_sensor:=false` et fournir une TF dynamique issue d'une odométrie ou d'un
-SLAM. OctoMap construit l'occupation 3D mais n'est pas lui-même l'estimateur de
-pose : ATE, RPE, dérive et fermeture de boucle doivent être évaluées sur la
-trajectoire publiée par cet estimateur externe.
+## Documentation
 
-## Documentation et traçabilité
+- [Project structure](docs/project-structure.md): ownership, generated paths,
+  and out-of-source build rules.
+- [Hardware runbook](docs/hardware-runbook.md): wiring, validation, recording,
+  and replay.
+- [Architecture decisions](docs/decisions.md): design choices and rationale.
+- [Validation matrix](docs/validation-matrix.md): reproducible checks and
+  hardware-dependent verdicts.
+- [Version lock](docs/versions-lock.md): pinned images, packages, and commits.
+- [Technical sources](docs/sources.md): authoritative upstream references.
 
-- `docs/configuration-log.md` : chronologie des commandes et résultats.
-- `docs/decisions.md` : choix techniques et justification.
-- `docs/versions-lock.md` : versions, commits et digests.
-- `docs/validation-matrix.md` : critères de test et verdicts.
-- `docs/sources.md` : sources officielles consultées.
-- `docs/hardware-runbook.md` : branchement, lancement, validation, bag et rejeu.
-- `docs/report/pdf/` : tous les PDF canoniques, classés par étape.
-- `docs/report/pdf/01_environment/CONFIGURATION_LOG_UNITREE_L1.pdf` : version PDF du journal
-  chronologique de configuration.
-- `docs/report/pdf/01_environment/COMPLETE_CONFIGURATION_REPORT_UNITREE_L1.pdf` : rapport
-  anglais complet de la configuration depuis l'audit initial jusqu'aux données
-  réelles, rosbag2, OctoMap, incidents, validations et limites.
-- `docs/report/pdf/02_lidar_and_rviz/DOCKER_RVIZ2_USAGE_REPORT_UNITREE_L1.pdf` : rapport
-  anglais complet sur l'utilisation de RViz2 exclusivement dans Docker, avec
-  profils, modes live/replay/OctoMap, preuve du processus et dépannage.
-- `docs/report/pdf/02_lidar_and_rviz/TUTORIAL_COLCON_RVIZ2_RECORD_UNITREE_L1.pdf` : tutoriel complet
-  colcon, RViz2, rosbag2 et rejeu.
-- `docs/report/pdf/03_octomap_mapping/TUTORIAL_DOCKER_LIDAR_RVIZ_OCTOMAP_UNITREE_L1.pdf` :
-  guide de démarrage pas à pas, entièrement Docker, du L1 au nuage RViz2 puis
-  à la carte OctoMap, sa validation, sa sauvegarde et sa réouverture.
-- `docs/report/pdf/03_octomap_mapping/TUTORIAL_UNITREE_L1_OCTOMAP_MAPPING.pdf` : procédure
-  de lancement OctoMap, RViz2 en direct, sauvegarde, réouverture et critères
-  d'évaluation d'une carte.
-- `docs/report/pdf/03_octomap_mapping/RAPPORT_CONFIGURATION_UNITREE_L1_OCTOMAP.pdf` : rapport
-  de configuration et validation réelle de la chaîne L1 -> OctoMap.
-- `docs/report/pdf/03_octomap_mapping/JOURNAL_MATERIEL_COMMANDES_UNITREE_L1_20260716_EN.pdf` : journal
-  anglais exhaustif des 86 entrées et commandes terminal.
-- `docs/report/pdf/03_octomap_mapping/TUTORIAL_UNITREE_L1_OCTOMAP_MAPPING_EN.pdf` et
-  `RAPPORT_CONFIGURATION_UNITREE_L1_OCTOMAP_EN.pdf` : copies anglaises explicites
-  des deux documents OctoMap.
-- `docs/report/pdf/00_preparation/SYNTHESE_UNITREE_L1_PRE_MATERIEL.pdf` : synthèse A4 de
-  trois pages.
-- `scripts/build-synthesis-pdf.sh` : reconstruction locale de cette synthèse.
-- `scripts/build-docker-lidar-rviz-octomap-tutorial-pdf.sh` : reconstruction du
-  tutoriel Docker L1/RViz2/OctoMap.
-- `scripts/build-complete-reports-pdf.sh` : reconstruction et contrôle A4 des
-  deux rapports complets configuration et RViz2/Docker.
-- `scripts/build-trace-archive.sh` : ZIP des documents, preuves et historique Git.
-- `docs/archive/` : traces historiques conservées sans réécriture.
-
-Les rapports PDF actuels sont produits à partir de ces preuves. La prochaine
-version ajoutera les essais de pose et de cartographie mobile après validation
-d'un estimateur SLAM.
-
-## Dépôt Git
-
-Le projet est déjà un dépôt Git local sur la branche `main`. Pour le publier
-dans votre propre dépôt distant vide :
-
-```bash
-cd /home/isr/unitree_l1_project
-git remote add origin URL_DE_VOTRE_DEPOT
-git push -u origin main
-```
-
-Si `origin` existe déjà, utiliser `git remote set-url origin ...`. Le guide
-`docs/report/pdf/01_environment/GUIDE_STRUCTURE_PROJET_UNITREE_L1.pdf` explique aussi le cas
-d'un dépôt distant non vide et les fichiers volontairement exclus de Git.
+Generated reports, raw logs, bags, maps, build trees, and copied upstream
+manuals are intentionally excluded from the repository.

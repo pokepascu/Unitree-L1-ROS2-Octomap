@@ -1,0 +1,41 @@
+# ROS 2, colcon, and CMake outputs. These names are ignored at every depth so
+# an accidental `colcon` invocation from ros2_ws/src cannot pollute the source.
+build/
+install/
+log/
+compile_commands.json
+
+# Reproducible third-party checkouts (see config/dependencies.repos).
+/ros2_ws/src/octomap_mapping/
+/ros2_ws/src/unilidar_sdk/
+
+# Runtime data and generated evidence.
+/bags/
+/exports/
+/logs/
+/maps/
+*.log
+*.zip
+
+# Python and test caches.
+__pycache__/
+*.py[cod]
+*.egg-info/
+.coverage
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+
+# Local configuration and credentials.
+.env
+.env.*
+!.env.example
+*.xauth
+
+# Editors and operating systems.
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*~

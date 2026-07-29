@@ -12,6 +12,7 @@ log_file="${project_root}/logs/tests/lidar-validation-${stamp}.log"
   exit 2
 }
 
+mkdir -p "$(dirname "${log_file}")"
 printf 'Validation output will be retained in %s\n' "${log_file}"
 docker exec "${runtime_container}" bash -lc '
   /workspace/scripts/assert-ros-container.sh

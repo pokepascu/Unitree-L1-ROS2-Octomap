@@ -16,9 +16,10 @@ setup(
     ],
     install_requires=["setuptools"],
     zip_safe=True,
-    maintainer="Unitree L1 project",
-    maintainer_email="noreply@example.invalid",
+    maintainer="Pascual Asio Serrano",
+    maintainer_email="103388150+pokepascu@users.noreply.github.com",
     description="Configurable launch and configuration for the Unitree L1 project.",
     license="MIT",
+    url="https://github.com/pokepascu/Unitree-L1-ROS2-Octomap",
     tests_require=["pytest"],
 )

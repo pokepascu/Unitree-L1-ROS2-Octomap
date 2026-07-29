@@ -1,142 +1,147 @@
-# Procédure de raccordement et de validation du Unitree L1
+# Connecting and validating the Unitree L1
 
-Cette procédure commence seulement quand le L1 et son adaptateur Unitree sont
-disponibles. La préparation logicielle, le build et les tests sans données sont
-déjà réalisables sans capteur.
+This procedure covers connection, validation, and recording with an L1 and its
+Unitree adapter. Software preparation, building, and data-independent tests can
+still be completed without the sensor.
 
-## 1. Sécurité avant alimentation
+## 1. Safety before applying power
 
-- Immobiliser le L1 et dégager sa zone mécanique.
-- Couper l'alimentation avant toute modification de câblage.
-- Utiliser le câble et l'adaptateur Unitree décrits par le manuel.
-- Respecter l'alimentation séparée 12 V / 1 A et sa polarité.
-- Ne pas alimenter le L1 depuis le 5 V USB.
-- Ne jamais relier directement le TTL 3,3 V à de l'USB ou du RS-232.
-- Le pilote utilise 2 000 000 bauds ; ne pas modifier cette valeur sans preuve.
+- Secure the L1 and clear its mechanical operating area.
+- Disconnect power before changing any wiring.
+- Use the Unitree cable and adapter described in the manual.
+- Observe the separate 12 V / 1 A supply requirement and its polarity.
+- Do not power the L1 from 5 V USB.
+- Never connect 3.3 V TTL directly to USB or RS-232.
+- The driver uses 2,000,000 baud; do not change this value without evidence.
 
-Le branchement attendu est : L1 vers l'adaptateur série Unitree, adaptateur vers
-USB du PC, et alimentation 12 V séparée. La mécanique peut démarrer ; garder les
-mains, câbles et objets hors de sa zone.
+The expected connection is L1 to Unitree serial adapter, adapter to the PC's USB
+port, and a separate 12 V supply. The mechanism may start moving; keep hands,
+cables, and objects outside its operating area.
 
-## 2. Identifier le nouveau port sans modifier l'hôte
+## 2. Identify the new port without modifying the host
 
-Avant le branchement, puis après la connexion USB et l'alimentation :
+Run this before connection, then again after connecting USB and applying power:
 
 ```bash
-cd /home/isr/unitree_l1_project
+# From the repository root
 ./scripts/check-lidar.sh
 ```
 
-Le script attend `udev`, affiche USB, `/dev/serial/by-id`, le vrai `ttyUSB*` ou
-`ttyACM*`, VID/PID, numéro de série, groupe et éventuel processus utilisateur. Il
-ne change ni permissions, ni service, ni règle `udev`.
+The script requires `udev` and reports USB devices, `/dev/serial/by-id`, the
+resolved `ttyUSB*` or `ttyACM*` device, VID/PID, serial number, group, and any
+process using the port. It changes no permissions, services, or `udev` rules.
 
-Si plusieurs adaptateurs existent, sélectionner explicitement le lien stable et
-résoudre son vrai périphérique :
+If several adapters are present, explicitly select the stable link and resolve
+its actual device:
 
 ```bash
-export LIDAR_DEVICE="$(readlink -e /dev/serial/by-id/<adaptateur-identifié>)"
+export LIDAR_DEVICE="$(readlink -e /dev/serial/by-id/<identified-adapter>)"
 test -c "$LIDAR_DEVICE"
 export LIDAR_GID="$(stat -Lc '%g' "$LIDAR_DEVICE")"
 ```
 
-Ne pas utiliser `chmod 777`. `group_add` transmet uniquement le GID du tty au
-conteneur. ModemManager est actif sur ce PC : ne pas le désactiver préventivement.
-Si `check-lidar.sh` prouve qu'il ouvre durablement ce seul adaptateur, documenter
-d'abord VID/PID/numéro de série, puis envisager une règle ciblée
-`ID_MM_DEVICE_IGNORE`. Aucun processus ne doit être tué par supposition.
+Do not use `chmod 777`. `group_add` passes only the tty GID into the container.
+ModemManager is active on the validated host; do not disable it pre-emptively.
+If `check-lidar.sh` proves that it persistently opens this specific adapter,
+record the VID, PID, and serial number first, then consider a targeted
+`ID_MM_DEVICE_IGNORE` rule. Do not kill a process based on an assumption.
 
-## 3. Premier lancement, sans RViz
+## 3. First launch without RViz
 
-Le premier essai réduit le nombre de variables :
+The first run minimises the number of variables:
 
 ```bash
 START_RVIZ=false ./scripts/lidar-launch.sh
 ```
 
-Le script :
+The script:
 
-1. refuse un port absent, ambigu, inattendu ou déjà occupé ;
-2. calcule le GID sur le vrai périphérique ;
-3. teste lecture/écriture dans un conteneur éphémère non privilégié ;
-4. lance `unitree_lidar_ros2_node` et `l1_monitor` dans le conteneur nommé
-   `unitree_l1_runtime`.
+1. rejects a missing, ambiguous, unexpected, or busy port;
+2. calculates the GID of the resolved device;
+3. tests read and write access in an ephemeral, unprivileged container;
+4. starts `unitree_lidar_ros2_node` and `l1_monitor` in the named
+   `unitree_l1_runtime` container.
 
-La simple présence du nœud ou des publishers n'est pas une réussite : le pilote
-fournisseur ignore le retour de `initialize()` et peut rester vivant sans données.
+The mere presence of the node or publishers is not a success condition: the
+vendor driver ignores the return value of `initialize()` and can remain alive
+without publishing data.
 
-Dans un second terminal, exiger des messages et des fréquences non nulles :
+In a second terminal, require actual messages and non-zero rates:
 
 ```bash
-cd /home/isr/unitree_l1_project
+# From the repository root
 ./scripts/lidar-validate.sh
 ```
 
-La sortie est aussi conservée dans `logs/tests/`. Le verdict
-`LIDAR_DATA_VALIDATION_PASS` exige un message PointCloud2, un message Imu, une
-mesure de fréquence pour chacun et un message `/diagnostics`.
+The output is also retained locally under the Git-ignored `logs/tests/`
+directory. A `LIDAR_DATA_VALIDATION_PASS` verdict requires one PointCloud2
+message, one Imu message, a measured rate for each, and one `/diagnostics`
+message.
 
-Si le port s'ouvre mais qu'aucune donnée ne paraît, arrêter proprement avec
-`Ctrl-C`. Le pilote ROS 2 fournisseur ne demande pas explicitement le mode
-`NORMAL`; vérifier l'état du L1 avant toute adaptation. Une éventuelle correction
-devra rester dans le code du projet, vérifier le retour d'initialisation et être
-testée/documentée, jamais appliquée silencieusement au vendor figé.
+If the port opens but no data appears, stop cleanly with `Ctrl-C`. The vendor
+ROS 2 driver does not explicitly request `NORMAL` mode; check the L1 state before
+making any adaptation. A necessary correction must remain in project code,
+check the initialisation result, and be tested and documented. Never apply it
+silently to the pinned vendor tree.
 
-## 4. Visualisation RViz2
+## 4. RViz2 visualisation
 
-Après validation des flux :
+After validating the streams:
 
 ```bash
 START_RVIZ=true ./scripts/lidar-launch.sh
 ```
 
-Le profil projet utilise `/unilidar/cloud`, le QoS Reliable/Volatile et le repère
-fixe `unilidar_lidar`. Le pilote ne publie aucun TF ; ce repère est donc volontaire
-pour la visualisation brute. L'override GUI monte uniquement le cookie X11 en
-lecture seule et les périphériques `/dev/dri`, sans `xhost +` ni mode privilégié.
+The project profile uses `/unilidar/cloud`, Reliable/Volatile QoS, and the
+`unilidar_lidar` fixed frame. The driver publishes no TF, so this frame is
+intentional for raw visualisation. The GUI overlay mounts only the read-only X11
+cookie and `/dev/dri` devices, without `xhost +` or privileged mode.
 
-## 5. Enregistrement d'un bag court
+## 5. Record a short bag
 
-Pendant que `lidar-launch.sh` tourne, lancer dans un second terminal :
+While `lidar-launch.sh` is running, execute this in a second terminal:
 
 ```bash
 BAG_LABEL=validation BAG_DURATION_SEC=30 ./scripts/record-bag.sh
 ```
 
-Le script refuse de commencer si cloud ou IMU ne délivrent aucun message. Il
-enregistre obligatoirement `/unilidar/cloud` et `/unilidar/imu`, puis ajoute
-`/diagnostics`, `/tf` et `/tf_static` seulement s'ils existent. L'arrêt borné est
-envoyé par `SIGINT` afin que rosbag2 finalise `metadata.yaml`.
+The script refuses to start unless both cloud and IMU messages arrive. It always
+records `/unilidar/cloud` and `/unilidar/imu`, then adds `/diagnostics`, `/tf`,
+and `/tf_static` only when they exist. A bounded recording receives `SIGINT` so
+rosbag2 can finalise `metadata.yaml`.
 
-Inspection :
-
-```bash
-./scripts/bag-info.sh bags/l1_validation_<date_heure>
-```
-
-Un bag n'est validé que si ses compteurs cloud et IMU sont strictement positifs.
-
-## 6. Rejeu sans LiDAR
-
-Après avoir arrêté le runtime matériel avec `Ctrl-C` et débranché si souhaité :
+Inspect the result:
 
 ```bash
-START_RVIZ=true ./scripts/replay-bag.sh bags/l1_validation_<date_heure>
+./scripts/bag-info.sh bags/l1_validation_<timestamp>
 ```
 
-Le rejeu démarre le moniteur et RViz dans le même conteneur que `ros2 bag play`.
-Comparer types, fréquences, timestamps, frames, champs et nombre de points au test
-réel. Le bag de validation court sera conservé séparément du futur parcours de
-cartographie.
+A bag is valid only when its cloud and IMU message counts are both greater than
+zero.
 
-## 7. Arrêt et reconnexion
+## 6. Replay without the LiDAR
 
-- Arrêter le launch et chaque enregistrement avec `Ctrl-C`.
-- Vérifier `docker ps` : aucun runtime projet ne doit rester actif.
-- Après déconnexion/reconnexion USB, relancer `check-lidar.sh` puis recréer le
-  conteneur ; ne pas supposer que `/dev/ttyUSB0` désigne encore le même appareil.
-- Inscrire résultats, erreurs, corrections et conditions d'essai dans
-  `docs/configuration-log.md` avant de passer à Point-LIO.
+After stopping the hardware runtime with `Ctrl-C` and disconnecting it if
+desired:
 
-Point-LIO ne sera choisi et réglé qu'après validation des messages réels, notamment
-les champs PointCloud2, timestamps, unités et extrinsèques LiDAR-IMU.
+```bash
+START_RVIZ=true ./scripts/replay-bag.sh bags/l1_validation_<timestamp>
+```
+
+Replay starts the monitor and RViz in the same container as `ros2 bag play`.
+Compare types, rates, timestamps, frames, fields, and point counts with the live
+test. Keep the short validation bag separate from a future mapping run.
+
+## 7. Shutdown and reconnection
+
+- Stop the launch process and every recording with `Ctrl-C`.
+- Check `docker ps`; no project runtime should remain active.
+- After disconnecting and reconnecting USB, rerun `./scripts/check-lidar.sh` and
+  recreate the container. Do not assume `/dev/ttyUSB0` still refers to the same
+  device.
+- Keep raw data and logs outside Git. Update `docs/validation-matrix.md` whenever
+  a reproducible check changes status.
+
+Point-LIO integration remains pending. Its selection and tuning must use the
+validated real messages, including PointCloud2 fields, timestamps, units, and
+LiDAR-to-IMU extrinsics.

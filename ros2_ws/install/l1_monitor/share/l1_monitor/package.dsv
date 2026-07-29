@@ -1,9 +1,0 @@
-source;share/l1_monitor/hook/pythonpath.ps1
-source;share/l1_monitor/hook/pythonpath.dsv
-source;share/l1_monitor/hook/pythonpath.sh
-source;share/l1_monitor/hook/ament_prefix_path.ps1
-source;share/l1_monitor/hook/ament_prefix_path.dsv
-source;share/l1_monitor/hook/ament_prefix_path.sh
-source;../../build/l1_monitor/share/l1_monitor/hook/pythonpath_develop.ps1
-source;../../build/l1_monitor/share/l1_monitor/hook/pythonpath_develop.dsv
-source;../../build/l1_monitor/share/l1_monitor/hook/pythonpath_develop.sh

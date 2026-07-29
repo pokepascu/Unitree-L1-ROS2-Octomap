@@ -9,12 +9,12 @@ services:
       args:
         HOST_UID: "${HOST_UID:-1000}"
         HOST_GID: "${HOST_GID:-1000}"
-    container_name: unitree_l1_humble
     init: true
     tty: true
     stdin_open: true
     working_dir: /workspace/ros2_ws
     environment:
+      COLCON_DEFAULTS_FILE: /workspace/ros2_ws/colcon_defaults.yaml
       ROS_DOMAIN_ID: "${ROS_DOMAIN_ID:-42}"
     volumes:
       - type: bind

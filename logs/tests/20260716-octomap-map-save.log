@@ -1,4 +1,0 @@
-Requesting OctoMap save to /home/isr/unitree_l1_project/maps/l1_real_bench_20260716.bt
-[INFO] [1784226143.280490394] [octomap_saver]: Map received (67533 nodes, 0.100000 m res), saving to /workspace/maps/l1_real_bench_20260716.bt
-Writing 45149 nodes to output stream... done.
-OCTOMAP_SAVE_PASS file=/home/isr/unitree_l1_project/maps/l1_real_bench_20260716.bt bytes=18902

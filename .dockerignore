@@ -1,0 +1,6 @@
+# The image only copies its entrypoint. Keep the build context deterministic
+# and prevent source, bags, maps, logs, or local build products being uploaded.
+**
+!docker/
+!docker/Dockerfile
+!docker/entrypoint.sh

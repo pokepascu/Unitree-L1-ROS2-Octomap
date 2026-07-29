@@ -1,151 +1,156 @@
-# Registre des décisions
+# Decision log
 
-## DEC-001 — Isoler ROS 2 Humble dans Docker
+## DEC-001 — Isolate ROS 2 Humble in Docker
 
-- Statut : acceptée.
-- Contrainte : l’hôte est Ubuntu 24.04 Noble alors que les binaires Humble ciblent
+- Status: accepted.
+- Constraint: the host runs Ubuntu 24.04 Noble, while the Humble binaries target
   Ubuntu 22.04 Jammy.
-- Options examinées : dépôts Jammy sur l’hôte, compilation native Noble, conteneur
-  Jammy/Humble.
-- Décision : conserver l’hôte Noble intact et utiliser Docker Jammy/Humble.
-- Justification : compatibilité, isolation et reconstruction documentée.
-- Réexamen : seulement si Humble doit ultérieurement fonctionner sans Docker.
+- Options considered: Jammy repositories on the host, a native Noble build, and
+  a Jammy/Humble container.
+- Decision: leave the Noble host unchanged and use Docker with Jammy/Humble.
+- Rationale: compatibility, isolation, and a documented reconstruction path.
+- Revisit only if Humble must later run without Docker.
 
-## DEC-002 — Conserver le SDK fournisseur intact
+## DEC-002 — Keep the vendor SDK unchanged
 
-- Statut : acceptée.
-- Décision : figer `unilidar_sdk` sur un commit et placer les adaptations dans un
-  paquet `l1_bringup` séparé.
-- Justification : différencier clairement le code Unitree et le code du projet.
+- Status: accepted.
+- Decision: pin `unilidar_sdk` to a commit and place adaptations in a separate
+  `l1_bringup` package.
+- Rationale: clearly distinguish Unitree code from project code.
 
-## DEC-003 — Séparer le Compose matériel
+## DEC-003 — Separate the hardware Compose overlay
 
-- Statut : acceptée.
-- Décision : le Compose principal démarre sans LiDAR ; un override ajoute ensuite
-  un seul périphérique série et son GID.
-- Justification : un chemin `/dev/ttyUSB0` absent empêcherait sinon tout test et
-  encouragerait l’usage injustifié du mode privilégié.
+- Status: accepted.
+- Decision: keep the base Compose service independent of the LiDAR; an overlay
+  adds one serial device and its GID.
+- Rationale: an absent `/dev/ttyUSB0` would otherwise prevent every test from
+  starting and encourage unjustified use of privileged mode.
 
-## DEC-004 — Ne pas utiliser le réseau hôte par défaut
+## DEC-004 — Do not use host networking by default
 
-- Statut : acceptée.
-- Décision : utiliser le réseau bridge Docker tant que tous les nœuds ROS résident
-  dans le même conteneur et que le L1 utilise l’interface série.
-- Justification : réduire l’exposition ; `network_mode: host` sera réévalué seulement
-  pour DDS inter-hôte ou un adaptateur série-vers-UDP explicitement identifié.
+- Status: accepted.
+- Decision: use Docker bridge networking while all ROS nodes run in the same
+  container and the L1 uses its serial interface.
+- Rationale: reduce exposure. Reconsider `network_mode: host` only for
+  inter-host DDS or an explicitly identified serial-to-UDP adapter.
 
-## DEC-005 — Monter l’autorisation X11 en lecture seule
+## DEC-005 — Mount X11 authorisation read-only
 
-- Statut : acceptée.
-- Décision : monter `${XAUTHORITY}` et `/tmp/.X11-unix`, sans `xhost +`.
-- Justification : tester RViz2 sans ouvrir globalement le serveur X.
+- Status: accepted.
+- Decision: mount `${XAUTHORITY}` and `/tmp/.X11-unix` without `xhost +`.
+- Rationale: run RViz2 without opening the X server globally.
 
-## DEC-006 — Ajouter un paquet `l1_bringup`
+## DEC-006 — Add an `l1_bringup` package
 
-- Statut : acceptée.
-- Décision : encapsuler le nœud Unitree dans un launch projet paramétrable.
-- Justification : le launch fournisseur fixe le port et les topics en littéral ;
-  une couche séparée conserve le vendor propre et permet `/dev/unitree_lidar`.
+- Status: accepted.
+- Decision: wrap the Unitree node in a configurable project launch file.
+- Rationale: the vendor launch file hard-codes the port and topics. A separate
+  layer keeps the vendor tree clean and supports `/dev/unitree_lidar`.
 
-## DEC-007 — Accepter provisoirement Humble/PCL 1.12
+## DEC-007 — Validate Humble with PCL 1.12
 
-- Statut : acceptée pour la phase matérielle.
-- Contexte : Unitree documente Ubuntu 20.04, Foxy et PCL 1.10 pour cette version.
-- Preuves : compilation et lien réussis sans patch, aucune bibliothèque manquante,
-  archive GCC 9.4 compatible avec le runtime GCC 11.4/GLIBCXX disponible.
-- Limite : seule la réception de vraies données validera le comportement complet.
+- Status: accepted and validated with the physical L1.
+- Context: Unitree documents Ubuntu 20.04, Foxy, and PCL 1.10 for this version.
+- Evidence: successful compilation and linking without a patch, no missing
+  libraries, compatibility between the GCC 9.4 vendor archive and the available
+  GCC 11.4/GLIBCXX runtime, followed by reception of real cloud and IMU data.
 
-## DEC-008 — Ajouter un moniteur non intrusif
+## DEC-008 — Add a non-intrusive monitor
 
-- Statut : acceptée.
-- Décision : `l1_monitor` s'abonne sans republier ni filtrer les données brutes et
-  publie deux statuts sur `/diagnostics`.
-- QoS : Reliable, Volatile, KeepLast(10), identique au contrat du pilote.
-- Seuils provisoires : rapport 2 s, timeout 3 s, âge d'en-tête 1 s, cloud 5 Hz,
-  IMU 20 Hz, fenêtre 100 messages.
-- Justification : ces valeurs sont des seuils d'alarme conservateurs, pas des
-  spécifications Unitree ; elles seront réglées après mesure réelle.
+- Status: accepted.
+- Decision: `l1_monitor` subscribes without republishing or filtering raw data
+  and publishes two statuses on `/diagnostics`.
+- QoS: Reliable, Volatile, KeepLast(10), matching the driver contract.
+- Provisional thresholds: 2 s report period, 3 s timeout, 1 s header age, 5 Hz
+  cloud rate, 20 Hz IMU rate, and a 100-message window.
+- Rationale: these values are conservative alarm thresholds, not Unitree
+  specifications. Re-evaluate them if the transport, driver, or sensor rate
+  changes.
 
-## DEC-009 — Isoler le domaine ROS du projet
+## DEC-009 — Isolate the project's ROS domain
 
-- Statut : acceptée.
-- Décision : `ROS_DOMAIN_ID=42` par défaut pour éviter de mélanger le graphe du
-  projet avec d'autres expériences ROS locales. L'audit isolé a utilisé 187.
-- Limite : tous les processus qui doivent communiquer doivent partager le domaine.
+- Status: accepted.
+- Decision: default to `ROS_DOMAIN_ID=42` to avoid mixing the project graph with
+  other local ROS experiments. The isolated audit used domain 187.
+- Limitation: every process that must communicate needs to share the domain.
 
-## DEC-010 — Ignorer deux clés rosdep seulement
+## DEC-010 — Skip only two rosdep keys
 
-- Statut : acceptée.
-- Décision : `workspace-build.sh` ignore `ament_python` et `pcl`, sans définition
-  rosdep exploitable dans ces manifestes, après vérification de leur installation.
-- Justification : conserver le manifeste fournisseur intact et laisser `rosdep`
-  contrôler toutes les autres dépendances.
+- Status: accepted.
+- Decision: after verifying their installation, `workspace-build.sh` skips
+  `ament_python` and `pcl`, for which these manifests provide no usable rosdep
+  resolution.
+- Rationale: keep the vendor manifest unchanged and let `rosdep` check every
+  other dependency.
 
-## DEC-011 — Séparer GUI et matériel
+## DEC-011 — Separate GUI and hardware access
 
-- Statut : acceptée.
-- Décision : `compose.yaml` reste utilisable sans affichage ni capteur ;
-  `compose.gui.yaml` ajoute X11/DRI et `compose.lidar.yaml` ajoute un seul tty/GID.
-- Justification : fonctionnement headless, moindre privilège et erreurs explicites.
+- Status: accepted.
+- Decision: keep `compose.yaml` usable without a display or sensor;
+  `compose.gui.yaml` adds X11/DRI, and `compose.lidar.yaml` adds one tty and GID.
+- Rationale: headless operation, least privilege, and explicit failures.
 
-## DEC-012 — Différer Point-LIO jusqu'au bag réel
+## DEC-012 — Evaluate Point-LIO with real data
 
-- Statut : acceptée.
-- Décision : ne pas figer ou adapter un port Point-LIO avant validation des champs
-  PointCloud2, timestamps, fréquences, unités et extrinsèques du L1 réel.
-- Justification : ces propriétés déterminent la branche et les paramètres utiles ;
-  un choix anticipé créerait une fausse validation sans données.
+- Status: hardware prerequisite satisfied; Point-LIO integration pending.
+- Decision: select and tune a Point-LIO port using the validated bag and its L1
+  PointCloud2 fields, timestamps, rates, units, and extrinsics.
+- Rationale: these properties determine the appropriate branch and parameters.
+  The choice must be based on data rather than assumed compatibility.
 
-## DEC-013 — Conserver les preuves avant matériel
+## DEC-013 — Keep the repository source-focused
 
-- Statut : acceptée.
-- Décision : versionner journal, matrices, PDF d'entrée, scripts, hashes et extraits
-  `colcon`; laisser bags/cartes volumineux hors Git.
-- Justification : le futur rapport PDF doit distinguer commande, résultat, erreur,
-  correction, interprétation et limites.
+- Status: accepted and revised after the structure audit.
+- Decision: version the code, reproducible configuration, and concise technical
+  documentation. Exclude build and install trees, caches, raw logs, bags, maps,
+  exports, generated reports, and copies of upstream manuals.
+- Rationale: these outputs are reproducible, machine-specific, or large. Keeping
+  them in the repository obscures meaningful changes and can expose local
+  hardware details.
 
-## DEC-014 — Restreindre la découverte `colcon` au workspace ROS 2
+## DEC-014 — Restrict `colcon` discovery to the ROS 2 workspace
 
-- Statut : acceptée et validée.
-- Problème : le dépôt Unitree contient aussi `unitree_lidar_ros` (ROS 1/catkin)
-  et un SDK CMake brut sans cible d'installation.
-- Décision : utiliser `ros2_ws/colcon_defaults.yaml` avec des `base-paths`
-  explicites et conserver les mêmes racines dans `workspace-build.sh`.
-- Justification : la commande simple `colcon build` reste utilisable depuis la
-  racine, sans installer catkin ni modifier le fournisseur.
+- Status: accepted and validated.
+- Problem: the Unitree repository also contains `unitree_lidar_ros` (ROS
+  1/catkin) and a raw CMake SDK without an install target.
+- Decision: use absolute container paths in `ros2_ws/colcon_defaults.yaml` for
+  discovery and the `build`, `install`, and `log` outputs. Keep the same roots in
+  `workspace-build.sh`.
+- Rationale: plain `colcon build` discovers neither catkin nor the raw CMake SDK
+  and cannot create output beneath `ros2_ws/src`.
 
-## DEC-015 — Intégrer OctoMap dans une couche projet séparée
+## DEC-015 — Integrate OctoMap through a separate project layer
 
-- Statut : acceptée et validée sur données réelles.
-- Décision : figer `octomap_mapping` 2.3.1 comme dépendance externe et placer
-  remappage, paramètres, launch et profil RViz dans `l1_octomap_bringup`.
-- Justification : Unitree et OctoMap restent intacts ; le projet contrôle
-  explicitement `/unilidar/cloud -> cloud_in`, les frames et la résolution.
+- Status: accepted and validated with real data.
+- Decision: pin `octomap_mapping` 2.3.1 as an external dependency and keep the
+  remapping, parameters, launch files, and RViz profile in
+  `l1_octomap_bringup`.
+- Rationale: Unitree and OctoMap remain unchanged, while the project explicitly
+  controls `/unilidar/cloud -> cloud_in`, frames, and resolution.
 
-## DEC-016 — Séparer carte de banc et cartographie mobile
+## DEC-016 — Separate bench mapping from mobile mapping
 
-- Statut : acceptée.
-- Banc : `static_sensor:=true` publie une identité `map -> unilidar_lidar`,
-  uniquement lorsque le capteur est immobile.
-- Mobile : `static_sensor:=false` exige une TF dynamique fournie par une
-  odométrie ou un SLAM externe.
-- Justification : OctoMap construit l'occupation 3D mais n'est pas, seul, un
-  estimateur de pose.
+- Status: accepted.
+- Bench: `static_sensor:=true` publishes an identity
+  `map -> unilidar_lidar` transform only while the sensor is stationary.
+- Mobile: `static_sensor:=false` requires a dynamic transform from external
+  odometry or SLAM.
+- Rationale: OctoMap builds 3D occupancy but is not a pose estimator by itself.
 
-## DEC-017 — Définir clairement la frontière OctoMap / SLAM
+## DEC-017 — Define the OctoMap/SLAM boundary
 
-- Statut : acceptée et validée sur données réelles immobiles.
-- Décision : considérer `octomap_server` comme la couche de cartographie 3D ;
-  ne pas l'annoncer comme un estimateur de pose ou un SLAM complet.
-- Justification : la chaîne validée reçoit un `PointCloud2` et demande une TF
-  `map -> unilidar_lidar`. La pose dynamique doit venir d'une odométrie ou d'un
-  futur SLAM (Point-LIO/SLAM Toolbox).
+- Status: accepted and validated with stationary real-world data.
+- Decision: treat `octomap_server` as the 3D mapping layer, not as a pose
+  estimator or complete SLAM system.
+- Rationale: the validated pipeline receives `PointCloud2` and requires a
+  `map -> unilidar_lidar` transform. Dynamic pose must come from odometry or a
+  future SLAM system such as Point-LIO or SLAM Toolbox.
 
-## DEC-018 — Encadrer la sauvegarde des cartes
+## DEC-018 — Control map saving
 
-- Statut : acceptée et validée.
-- Décision : utiliser `scripts/save-octomap.sh` pour appeler le saver officiel,
-  refuser l'écrasement et vérifier un fichier `.bt` ou `.ot` non vide dans
+- Status: accepted and validated.
+- Decision: use `scripts/save-octomap.sh` to call the official saver, refuse to
+  overwrite an existing file, and verify a non-empty `.bt` or `.ot` file under
   `maps/`.
-- Justification : une carte est une donnée générée et peut être volumineuse ;
-  elle reste hors Git tandis que la commande et sa preuve sont versionnées.
+- Rationale: a map is generated data and can be large. It remains outside Git,
+  while the wrapper and its checks are versioned.

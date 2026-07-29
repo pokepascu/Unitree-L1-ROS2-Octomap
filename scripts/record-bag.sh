@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 runtime_container="${RUNTIME_CONTAINER:-unitree_l1_runtime}"
 label="${BAG_LABEL:-validation}"
 duration="${BAG_DURATION_SEC:-0}"
@@ -17,6 +18,7 @@ duration="${BAG_DURATION_SEC:-0}"
   exit 2
 }
 
+mkdir -p "${project_root}/bags"
 bag_name="l1_${label}_$(date +%Y%m%d_%H%M%S)"
 bag_path="/workspace/bags/${bag_name}"
 printf 'Recording to %s\n' "${bag_path}"

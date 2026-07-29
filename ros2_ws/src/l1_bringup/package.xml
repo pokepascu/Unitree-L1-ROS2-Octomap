@@ -4,8 +4,9 @@
   <name>l1_bringup</name>
   <version>0.1.0</version>
   <description>Configurable launch and configuration for the Unitree L1 project.</description>
-  <maintainer email="noreply@example.invalid">Unitree L1 project</maintainer>
+  <maintainer email="103388150+pokepascu@users.noreply.github.com">Pascual Asio Serrano</maintainer>
   <license>MIT</license>
+  <url type="repository">https://github.com/pokepascu/Unitree-L1-ROS2-Octomap</url>
 
   <buildtool_depend>ament_python</buildtool_depend>
 

@@ -44,6 +44,12 @@ docker compose -f "${project_root}/docker/compose.yaml" run --rm dev \
           "${label}" "${actual}" "${expected}" >&2
         return 1
       fi
+      if [[ -n "$(git -C "${target}" status --porcelain)" ]]; then
+        printf "%s checkout contains local changes: %s\n" \
+          "${label}" "${target}" >&2
+        git -C "${target}" status --short >&2
+        return 1
+      fi
       printf "%s dependency ready at %s\n" "${label}" "${actual}"
     }
 
