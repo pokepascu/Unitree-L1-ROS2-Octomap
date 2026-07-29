@@ -1,0 +1,21 @@
+# Workspace-local defaults keep plain `colcon` commands inside the ROS 2 tree.
+# The Unitree repository also contains a ROS 1/catkin package and a raw CMake
+# SDK. They are intentionally outside these discovery roots and stay unmodified.
+list:
+  base-paths: &ros2_base_paths
+    - src/l1_bringup
+    - src/l1_monitor
+    - src/l1_octomap_bringup
+    - src/octomap_mapping
+    - src/unilidar_sdk/unitree_lidar_ros2
+
+build:
+  base-paths: *ros2_base_paths
+  symlink-install: true
+  event-handlers:
+    - console_cohesion+
+
+test:
+  base-paths: *ros2_base_paths
+  event-handlers:
+    - console_cohesion+
