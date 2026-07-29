@@ -1,0 +1,3 @@
+[console_scripts]
+l1_monitor = l1_monitor.monitor_node:main
+
