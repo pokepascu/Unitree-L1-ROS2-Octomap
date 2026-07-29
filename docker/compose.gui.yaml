@@ -1,0 +1,20 @@
+services:
+  dev:
+    environment:
+      DISPLAY: "${DISPLAY:?DISPLAY doit désigner la session graphique}"
+      XAUTHORITY: /tmp/host.xauthority
+      QT_X11_NO_MITSHM: "1"
+    volumes:
+      - type: bind
+        source: /tmp/.X11-unix
+        target: /tmp/.X11-unix
+        read_only: true
+      - type: bind
+        source: "${XAUTHORITY:?XAUTHORITY doit pointer vers le cookie X11 de la session}"
+        target: /tmp/host.xauthority
+        read_only: true
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - "${VIDEO_GID:-44}"
+      - "${RENDER_GID:-992}"

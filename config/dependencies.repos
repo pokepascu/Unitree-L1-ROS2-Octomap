@@ -1,0 +1,9 @@
+repositories:
+  octomap_mapping:
+    type: git
+    url: https://github.com/OctoMap/octomap_mapping.git
+    version: f79da9a9a1fcdf82e72dab4df288d6cc27c6e163
+  unilidar_sdk:
+    type: git
+    url: https://github.com/unitreerobotics/unilidar_sdk.git
+    version: 1bd7d95d8ab7ce7a22058d2bb07e39fd62612aa6

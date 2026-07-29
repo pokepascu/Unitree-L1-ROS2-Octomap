@@ -1,0 +1,8 @@
+services:
+  dev:
+    devices:
+      - "${LIDAR_DEVICE:?Définir LIDAR_DEVICE après détection}:/dev/unitree_lidar:rwm"
+    group_add:
+      - "${LIDAR_GID:?Définir LIDAR_GID avec stat -Lc %g sur le tty résolu}"
+    environment:
+      LIDAR_PORT: /dev/unitree_lidar
