@@ -1,6 +1,5 @@
 unitree_lidar_ros2_node:
   ros__parameters:
-    #port: /dev/ttyUSB0
     port: /dev/unitree_lidar
     rotate_yaw_bias: 0.0
     range_scale: 0.001
@@ -12,15 +11,3 @@ unitree_lidar_ros2_node:
     cloud_scan_num: 18
     imu_frame: unilidar_imu
     imu_topic: unilidar/imu
-
-l1_monitor:
-  ros__parameters:
-    cloud_topic: /unilidar/cloud
-    imu_topic: /unilidar/imu
-    diagnostics_topic: /diagnostics
-    report_period_sec: 2.0
-    timeout_sec: 3.0
-    max_stamp_age_sec: 1.0
-    min_cloud_hz: 5.0
-    min_imu_hz: 20.0
-    window_size: 100

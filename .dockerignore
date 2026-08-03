@@ -1,6 +1,15 @@
-# The image only copies its entrypoint. Keep the build context deterministic
-# and prevent source, bags, maps, logs, or local build products being uploaded.
 **
+!.dockerignore
 !docker/
 !docker/Dockerfile
-!docker/entrypoint.sh
+!docker/ros2-profile.sh
+!ros2_ws/
+!ros2_ws/src/
+!ros2_ws/src/l1_bringup/
+!ros2_ws/src/l1_bringup/**
+!ros2_ws/src/l1_octomap_bringup/
+!ros2_ws/src/l1_octomap_bringup/**
+
+# Never copy local interpreter output into installed ROS package shares.
+**/__pycache__/
+**/*.pyc

@@ -1,8 +1,0 @@
-services:
-  dev:
-    devices:
-      - "${LIDAR_DEVICE:?Set LIDAR_DEVICE after detection}:/dev/unitree_lidar:rwm"
-    group_add:
-      - "${LIDAR_GID:?Set LIDAR_GID from stat -Lc %g on the resolved tty}"
-    environment:
-      LIDAR_PORT: /dev/unitree_lidar

@@ -1,0 +1,41 @@
+name: unitree-l1
+
+services:
+  ros:
+    image: unitree-l1:humble-v1.0.16
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        HOST_UID: "${HOST_UID:-1000}"
+        HOST_GID: "${HOST_GID:-1000}"
+    init: true
+    command: ["sleep", "infinity"]
+    working_dir: /workspace
+    environment:
+      DISPLAY: "${DISPLAY:?DISPLAY is not set; run from the graphical desktop}"
+      XAUTHORITY: /tmp/host.xauthority
+      QT_X11_NO_MITSHM: "1"
+    volumes:
+      - type: bind
+        source: ./bags
+        target: /workspace/bags
+      - type: bind
+        source: /tmp/.X11-unix
+        target: /tmp/.X11-unix
+        read_only: true
+      - type: bind
+        source: "${XAUTHORITY:?XAUTHORITY is not set; run from the graphical desktop}"
+        target: /tmp/host.xauthority
+        read_only: true
+    devices:
+      - "${LIDAR_DEVICE:-/dev/ttyUSB0}:/dev/unitree_lidar:rwm"
+      - /dev/dri:/dev/dri
+    group_add:
+      - "${LIDAR_GID:-20}"
+      - "${VIDEO_GID:-44}"
+      - "${RENDER_GID:-992}"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL

@@ -1,46 +1,27 @@
-# ROS 2, colcon, and CMake outputs. These names are ignored at every depth so
-# an accidental `colcon` invocation from ros2_ws/src cannot pollute the source.
+# Recorded sensor data (keep only the directory placeholder).
+/bags/*
+!/bags/.gitkeep
+
+# ROS/colcon output, if a developer chooses to build outside the image.
 build/
 install/
 log/
-compile_commands.json
 
-# Reproducible third-party checkouts (see config/dependencies.repos).
-/ros2_ws/src/octomap_mapping/
-/ros2_ws/src/unilidar_sdk/
+# Python/editor/OS noise.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+.env.*
+.idea/
+.vscode/
+.DS_Store
+*~
 
-# Runtime data and generated evidence.
-/bags/
+# Only the three requested publication PDFs are retained.
 /exports/*
 !/exports/manuals/
 /exports/manuals/*
 !/exports/manuals/UNITREE_L1_ENGINEERING_MANUAL.pdf
-!/exports/manuals/UNITREE_L1_FIRST_RUN_TUTORIAL.pdf
-!/exports/manuals/UNITREE_L1_FILE_ORGANIZATION_REFERENCE.pdf
-/logs/
-/maps/
-*.log
-*.zip
-
-# Python and test caches.
-__pycache__/
-*.py[cod]
-*.egg-info/
-.coverage
-.mypy_cache/
-.pytest_cache/
-.ruff_cache/
-htmlcov/
-
-# Local configuration and credentials.
-.env
-.env.*
-!.env.example
-*.xauth
-
-# Editors and operating systems.
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/
-*~
+!/exports/manuals/UNITREE_L1_USER_MANUAL.pdf
+!/exports/manuals/UNITREE_L1_STRUCTURE_AND_ORGANISATION.pdf

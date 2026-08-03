@@ -130,30 +130,34 @@ build_document \
   engineering-manual.md \
   UNITREE_L1_ENGINEERING_MANUAL.pdf \
   'Unitree L1 Engineering Manual' \
-  15 \
+  8 \
   'Engineering Manual' \
-  'DOCKER_ONLY_PIPELINE_PASS' \
-  'Stationary and mobile mapping are different contracts' \
+  'ros2 launch l1_bringup' \
+  'ros2 launch l1_octomap_bringup' \
+  '/occupied_cells_vis_array' \
+  'Hardware acceptance limitation' \
   'Maintenance and change control'
 
 build_document \
-  first-run-tutorial.md \
-  UNITREE_L1_FIRST_RUN_TUTORIAL.pdf \
-  'Unitree L1 First Run Tutorial' \
-  7 \
-  'First Run Tutorial' \
-  'LIDAR_DATA_VALIDATION_PASS' \
-  'OCTOMAP_MAPPING_HEALTH_PASS' \
-  'Shut down in reverse order'
+  user-manual.md \
+  UNITREE_L1_USER_MANUAL.pdf \
+  'Unitree L1 User Manual' \
+  6 \
+  'User Manual' \
+  'Terminal A' \
+  'ros2 launch l1_octomap_bringup' \
+  'ros2 bag record' \
+  'Stop cleanly and inspect the bag'
 
 build_document \
-  file-organization-reference.md \
-  UNITREE_L1_FILE_ORGANIZATION_REFERENCE.pdf \
-  'Unitree L1 File Organization Reference' \
-  12 \
-  'File Organization Reference' \
-  'Three provenance classes' \
-  'ros2_ws/colcon_defaults.yaml' \
-  'Generated and ignored paths'
+  structure-and-organisation.md \
+  UNITREE_L1_STRUCTURE_AND_ORGANISATION.pdf \
+  'Unitree L1 Structure and Organisation' \
+  5 \
+  'Structure and Organisation' \
+  'Complete File Inventory' \
+  'l1_octomap_bringup' \
+  'sleep infinity' \
+  'What Runs and When'
 
 printf 'MANUAL_SET_PASS output=%s count=3\n' "${output_directory}"

@@ -68,7 +68,7 @@ Visualization Manager:
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
-    Fixed Frame: map
+    Fixed Frame: unilidar_lidar
     Frame Rate: 30
   Name: root
   Tools:
@@ -91,7 +91,7 @@ Visualization Manager:
         Z: 0
       Name: Current View
       Pitch: 0.785
-      Target Frame: map
+      Target Frame: unilidar_lidar
       Value: Orbit (rviz_default_plugins)
       Yaw: 0.785
     Saved: ~

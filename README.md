@@ -1,189 +1,174 @@
-# Unitree 4D LiDAR L1 — ROS 2 Humble and OctoMap
+# Unitree L1: minimal ROS 2 Docker project
 
-Reproducible Docker environment for building, running, visualising, recording,
-and mapping Unitree L1 data with ROS 2 Humble. The Ubuntu 24.04 host remains free
-of ROS packages; the complete ROS stack runs in an Ubuntu 22.04 container.
+This project does three things:
 
-## Current status
+1. reads a Unitree 4D LiDAR L1 with the vendor ROS 2 driver;
+2. displays the cloud and builds a live OctoMap while the L1 is stationary;
+3. records the cloud and IMU topics with standard `ros2 bag` commands.
 
-- Unitree UniLiDAR SDK `v1.0.16` is pinned to commit
-  `1bd7d95d8ab7ce7a22058d2bb07e39fd62612aa6`.
-- OctoMap mapping `2.3.1` is pinned to commit
-  `f79da9a9a1fcdf82e72dab4df288d6cc27c6e163`.
-- The L1 cloud, IMU, RViz2, rosbag2, and stationary-sensor OctoMap pipeline have
-  been validated with real hardware.
-- Mobile mapping still requires a dynamic pose source such as odometry or SLAM.
-  OctoMap creates the occupancy map; it does not estimate the robot pose.
+There are no runtime wrapper scripts, custom processing nodes, or SLAM
+packages. The two small project packages contain only launch, parameter, and
+RViz files. The image installs the released ROS 2 Humble `octomap_server`
+binary; it does not clone or modify OctoMap source.
 
-## Project structure
+## What runs
 
-```text
-.
-├── config/
-│   └── dependencies.repos       # pinned third-party repositories
-├── docker/
-│   ├── Dockerfile               # Ubuntu 22.04 + ROS 2 Humble image
-│   ├── compose.yaml             # base development service
-│   ├── compose.gui.yaml         # opt-in X11 and DRI access
-│   ├── compose.lidar.yaml       # opt-in serial-device access
-│   └── entrypoint.sh
-├── docs/                        # concise design, hardware, and validation docs
-├── ros2_ws/
-│   ├── colcon_defaults.yaml     # the six permitted ROS 2 packages
-│   └── src/
-│       ├── l1_bringup/          # configurable driver launch and RViz profile
-│       ├── l1_monitor/          # cloud and IMU diagnostics
-│       └── l1_octomap_bringup/  # OctoMap launch, configuration, and RViz
-├── scripts/                     # executable setup and runtime commands
-├── .dockerignore
-├── .gitignore
-├── LICENSE
-└── README.md
-```
+`docker compose up -d` creates one container whose only project command is
+`sleep infinity`. Docker's small init process supervises that idle child so
+`docker compose down` stops cleanly. Neither process reads the LiDAR; they only
+keep the named container available to two terminals.
 
-The following paths are generated locally and are deliberately not versioned:
+The raw launch starts:
 
-- `ros2_ws/src/unilidar_sdk/` and `ros2_ws/src/octomap_mapping/` are recreated
-  from `config/dependencies.repos`;
-- `ros2_ws/build/`, `ros2_ws/install/`, and `ros2_ws/log/` are colcon outputs;
-- `bags/`, `maps/`, `logs/`, and non-manual `exports/` contain runtime data.
-  The three reviewed PDFs in `exports/manuals/` are tracked publications.
+- `unitree_lidar_ros2_node` — reads the serial port and publishes cloud + IMU;
+- `ros2 topic hz /unilidar/cloud` — only when `monitor:=true`;
+- `rviz2` — only when `rviz:=true`.
 
-There must never be a `build`, `install`, or `log` directory inside
-`ros2_ws/src`. Always invoke colcon from `ros2_ws`, or use
-`./scripts/workspace-build.sh`. The build wrapper and repository hygiene checks
-scan recursively for accidental generated output under `src`.
+The combined OctoMap launch starts the same driver and monitor, plus:
 
-## Requirements
+- `octomap_server_node` — consumes `/unilidar/cloud`;
+- one map-oriented `rviz2` — displays the cloud and occupied voxels.
 
-- Docker Engine with Docker Compose;
-- an X11 session and `/dev/dri` for RViz2;
-- the Unitree adapter and a separately powered L1 for live operation.
+The OctoMap fixed frame is `unilidar_lidar`, the cloud's own frame. This avoids
+inventing a pose or running a TF publisher. Keep the L1 body stationary:
+OctoMap is occupancy mapping, not localization or SLAM.
 
-Do not install ROS 2 Humble on the Ubuntu 24.04 host. Do not use
-`privileged: true`, `chmod 777`, or a global `xhost +`.
+Recording is a separate command that you start in Terminal B. The launch file
+does not record automatically.
 
-## Build
+## Host requirements
+
+- Docker Engine and Docker Compose;
+- an X11 graphical desktop (`DISPLAY` and `XAUTHORITY` must be set);
+- `/dev/dri` for accelerated RViz2 rendering;
+- the Unitree adapter and the L1's separate specified power supply;
+- a host serial device, normally `/dev/ttyUSB0`.
+
+The project defaults match this computer: user/group `1000:1000`, serial group
+20, video group 44, and render group 992. The manuals show how to inspect and
+override those values when they differ.
+
+## One-time image build
 
 From the repository root:
 
 ```bash
-./scripts/docker-build.sh
-./scripts/workspace-build.sh
-./scripts/smoke-test.sh
+cd /home/isr/unitree_l1_project
+docker compose build
 ```
 
-`workspace-build.sh` fetches and verifies the pinned dependencies before
-building. To fetch them without compiling:
+The Dockerfile checks out Unitree UniLiDAR SDK v1.0.16 at commit
+`1bd7d95d8ab7ce7a22058d2bb07e39fd62612aa6`, copies `l1_bringup`, and builds
+exactly these three ROS 2 packages into the image:
+
+```text
+unitree_lidar_ros2
+l1_bringup
+l1_octomap_bringup
+```
+
+Rebuild the image only after changing the Dockerfile or either bringup package.
+
+## Start the container
+
+Connect and separately power the L1, then confirm the serial path:
 
 ```bash
-./scripts/fetch-dependencies.sh
+ls -l /dev/ttyUSB*
 ```
 
-To work interactively inside the Humble container:
+For the normal `/dev/ttyUSB0` case:
 
 ```bash
-./scripts/docker-shell.sh --no-gui --no-lidar
+docker compose up -d
+docker compose ps
 ```
 
-The explicit flags keep build-only work independent of X11, DRI, and hardware.
-Use `./scripts/docker-shell.sh --help` for opt-in GUI and LiDAR access.
-
-The Compose environment sets `COLCON_DEFAULTS_FILE` to the workspace
-configuration. From `/workspace/ros2_ws`, plain colcon commands therefore
-discover only the intended ROS 2 packages:
+If the path or group differs, export the actual values before `up`:
 
 ```bash
-colcon list
-colcon build
-source install/setup.bash
+export LIDAR_DEVICE=/dev/ttyUSB1
+export LIDAR_GID="$(stat -Lc '%g' "$LIDAR_DEVICE")"
+docker compose up -d
 ```
 
-## Docker-only runtime
+Compose always exposes the chosen host device inside the container as
+`/dev/unitree_lidar`.
 
-ROS 2, the Unitree driver, OctoMap, and RViz2 run inside Docker. Only the X11
-socket, DRI devices, and the selected serial device cross the container
-boundary. Every runtime wrapper calls `scripts/assert-ros-container.sh`; the
-project launch files enforce the same boundary.
-
-After starting a graphical workflow, verify the process location with:
+## Terminal A: launch the LiDAR, OctoMap, and RViz2
 
 ```bash
-./scripts/verify-docker-only.sh
+docker compose exec ros bash -l
+ros2 launch l1_octomap_bringup unitree_l1_octomap.launch.py \
+  port:=/dev/unitree_lidar \
+  monitor:=true \
+  rviz:=true
 ```
 
-The expected verdicts include `HOST_NATIVE_RVIZ_ABSENT` and
-`DOCKER_ONLY_PIPELINE_PASS`.
+Leave the launch running. Expected interfaces are:
 
-## Live LiDAR
+| Topic | Type | Frame |
+|---|---|---|
+| `/unilidar/cloud` | `sensor_msgs/msg/PointCloud2` | `unilidar_lidar` |
+| `/unilidar/imu` | `sensor_msgs/msg/Imu` | `unilidar_imu` |
+| `/occupied_cells_vis_array` | `visualization_msgs/msg/MarkerArray` | `unilidar_lidar` |
+| `/octomap_binary` | `octomap_msgs/msg/Octomap` | `unilidar_lidar` |
 
-Read [the hardware runbook](docs/hardware-runbook.md) before powering or wiring
-the sensor. The normal validation sequence is:
+RViz2 uses `unilidar_lidar` as its fixed frame and displays the point cloud
+plus `/occupied_cells_vis_array`. This launch publishes no TF because the
+cloud and map use the same stationary sensor frame.
+
+For the raw cloud without OctoMap, use this alternative instead:
 
 ```bash
-./scripts/check-lidar.sh
-START_RVIZ=false ./scripts/lidar-launch.sh
+ros2 launch l1_bringup unitree_l1.launch.py \
+  port:=/dev/unitree_lidar monitor:=true rviz:=true
 ```
 
-In a second terminal:
+Do not run both launches together; each one starts the LiDAR driver.
+
+## Terminal B: inspect and record
+
+Open a second host terminal:
 
 ```bash
-./scripts/lidar-validate.sh
+cd /home/isr/unitree_l1_project
+docker compose exec ros bash -l
+ros2 topic list --no-daemon
+ros2 topic echo /unilidar/cloud --field width --once
+ros2 bag record \
+  -o /workspace/bags/l1_run_01 \
+  /unilidar/cloud \
+  /unilidar/imu
 ```
 
-After message and frequency validation, restart with RViz2:
+Use a new bag name for each run. Stop recording with `Ctrl+C`; this cleanly
+writes `metadata.yaml`. Then inspect it:
 
 ```bash
-START_RVIZ=true ./scripts/lidar-launch.sh
+ros2 bag info /workspace/bags/l1_run_01
 ```
 
-Record a bounded sample:
+The bag appears on the host at `bags/l1_run_01/`.
+
+## Stop
+
+1. In Terminal B, stop `ros2 bag record` with `Ctrl+C`, then `exit`.
+2. In Terminal A, stop `ros2 launch` with `Ctrl+C`, then `exit`.
+3. On the host, remove the idle container:
 
 ```bash
-BAG_LABEL=validation BAG_DURATION_SEC=30 ./scripts/record-bag.sh
+docker compose down
 ```
 
-The `bags/` and `logs/` directories are created on demand and remain ignored by
-Git.
+## Manuals
 
-## OctoMap
+- [Engineering manual](exports/manuals/UNITREE_L1_ENGINEERING_MANUAL.pdf)
+- [User manual](exports/manuals/UNITREE_L1_USER_MANUAL.pdf)
+- [Structure and organisation](exports/manuals/UNITREE_L1_STRUCTURE_AND_ORGANISATION.pdf)
+- [Editable manual sources](docs/manuals/README.md)
 
-For a perfectly stationary sensor, start the live stack and then:
-
-```bash
-OCTOMAP_RVIZ=true ./scripts/octomap-launch.sh
-./scripts/evaluate-octomap.sh
-./scripts/save-octomap.sh my_room_01.bt
-```
-
-Inspect or reopen a saved map:
-
-```bash
-./scripts/inspect-octomap.sh my_room_01.bt
-./scripts/view-octomap.sh my_room_01.bt
-```
-
-Do not use the stationary transform while the sensor or robot is moving. With
-the host wrapper, set `STATIC_SENSOR=false`; with a direct ROS launch, pass
-`static_sensor:=false`. Both modes require a dynamic transform from the chosen
-pose estimator.
-
-## Documentation
-
-- [Project structure](docs/project-structure.md): ownership, generated paths,
-  and out-of-source build rules.
-- [Hardware runbook](docs/hardware-runbook.md): wiring, validation, recording,
-  and replay.
-- [Architecture decisions](docs/decisions.md): design choices and rationale.
-- [Validation matrix](docs/validation-matrix.md): reproducible checks and
-  hardware-dependent verdicts.
-- [Version lock](docs/versions-lock.md): pinned images, packages, and commits.
-- [Technical sources](docs/sources.md): authoritative upstream references.
-- [Engineering manual (PDF)](exports/manuals/UNITREE_L1_ENGINEERING_MANUAL.pdf)
-- [First-run tutorial (PDF)](exports/manuals/UNITREE_L1_FIRST_RUN_TUTORIAL.pdf)
-- [File organization reference (PDF)](exports/manuals/UNITREE_L1_FILE_ORGANIZATION_REFERENCE.pdf)
-- [Manual sources and rendering](docs/manuals/README.md)
-
-Generated reports, raw logs, bags, maps, build trees, and copied upstream
-manuals are intentionally excluded from the repository. The three
-project-authored PDFs linked above are the publication exception.
+Live sensor validation is still pending for this revision because no LiDAR
+serial device is connected at the time of the software rebuild. The Docker
+build, ROS package graph, GUI path, and rosbag command can be verified without
+claiming live hardware data.

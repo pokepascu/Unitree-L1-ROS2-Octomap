@@ -1,16 +1,7 @@
 octomap_server:
   ros__parameters:
-    frame_id: map
-    base_frame_id: unilidar_lidar
+    frame_id: unilidar_lidar
     resolution: 0.10
     sensor_model.max_range: 15.0
-    sensor_model.hit: 0.7
-    sensor_model.miss: 0.4
-    sensor_model.min: 0.12
-    sensor_model.max: 0.97
     filter_ground_plane: false
-    filter_speckles: false
-    compress_map: true
-    incremental_2D_projection: false
-    publish_free_space: false
     latch: true
