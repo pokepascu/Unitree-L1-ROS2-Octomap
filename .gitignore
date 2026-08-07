@@ -18,10 +18,19 @@ __pycache__/
 .DS_Store
 *~
 
-# Only the three requested publication PDFs are retained.
+# Retain the published manuals and Unitree L1 research documents.
 /exports/*
 !/exports/manuals/
 /exports/manuals/*
 !/exports/manuals/UNITREE_L1_ENGINEERING_MANUAL.pdf
 !/exports/manuals/UNITREE_L1_USER_MANUAL.pdf
 !/exports/manuals/UNITREE_L1_STRUCTURE_AND_ORGANISATION.pdf
+!/exports/Unitree_research/
+/exports/Unitree_research/*
+!/exports/Unitree_research/README.md
+!/exports/Unitree_research/Protocole_experimental_Unitree_L1_short_paper.pdf
+!/exports/Unitree_research/Unitree_L1_Codex_Implementation_Specification.pdf
+!/exports/Unitree_research/Unitree_L1_Evidence_Based_Performance_Assessment.pdf
+!/exports/Unitree_research/Unitree_L1_Evidence_Based_Performance_Assessment_Revised.pdf
+!/exports/Unitree_research/Unitree_L1_Experimental_Protocol_Short_Paper_EN.pdf
+!/exports/Unitree_research/Unitree_L1_Remaining_Experiments_Protocol.pdf

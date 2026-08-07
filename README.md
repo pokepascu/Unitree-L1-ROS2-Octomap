@@ -168,6 +168,10 @@ docker compose down
 - [Structure and organisation](exports/manuals/UNITREE_L1_STRUCTURE_AND_ORGANISATION.pdf)
 - [Editable manual sources](docs/manuals/README.md)
 
+## Research documents
+
+- [Unitree L1 LiDAR mapping performance research and experimental protocols](exports/Unitree_research/README.md)
+
 Live sensor validation is still pending for this revision because no LiDAR
 serial device is connected at the time of the software rebuild. The Docker
 build, ROS package graph, GUI path, and rosbag command can be verified without
