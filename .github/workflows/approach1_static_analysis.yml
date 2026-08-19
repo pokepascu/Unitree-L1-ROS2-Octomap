@@ -3,6 +3,8 @@ name: Approach 1 static point-cloud analysis
 on:
   push:
     branches: [analysis/approach-1-static]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -64,12 +66,12 @@ jobs:
           if-no-files-found: error
 
       - name: Commit compact reproducible results to analysis branch
+        if: github.event_name == 'push'
         shell: bash
         run: |
           set -euxo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Keep tools/config and compact evidence. Large intermediate clouds/video stay in the workflow artifact for now.
           find results/approach_1 -name '*.ply' -delete
           find results/approach_1 -name '*.npz' -delete
           find results/approach_1 -name '*.mp4' -delete
