@@ -1,0 +1,31 @@
+name: NAS download diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  SHARE_URL: https://nas-greenbotics.isr.uc.pt/drive/d/s/19Nbg4F76IZ5qEWUbGyWhFfmqULZf0kO/lzGW7jJopGGo_ZGmhFpz4dQizFZiahPs-P7_gYpHyaA0
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Synology public-link downloader
+        run: |
+          set -euxo pipefail
+          cargo install --git https://github.com/jerry73204/synology-dl --locked || cargo install --git https://github.com/jerry73204/synology-dl
+      - name: Download and inspect shared files
+        run: |
+          set -euxo pipefail
+          rm -rf /tmp/nas_download
+          mkdir -p /tmp/nas_download
+          synology-dl -f "$SHARE_URL" /tmp/nas_download
+          find /tmp/nas_download -maxdepth 6 -type f -printf '%p\t%s bytes\n' | sort
+          COUNT=$(find /tmp/nas_download -type f -name '*.mcap' -size +100k | wc -l)
+          echo "Real MCAP files found: $COUNT"
+          test "$COUNT" -ge 3
