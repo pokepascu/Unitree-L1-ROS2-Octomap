@@ -35,37 +35,52 @@ jobs:
           api = (f"{base}/drive/webapi/entry.cgi?api=SYNO.SynologyDrive.Shard&version=1&method=getjs"
                  f"&permanent_link={quote(json.dumps(perm))}&sharing_link={quote(json.dumps(sharing))}")
           js = s.get(api, timeout=30).text
-          mm = re.search(r"(?:window\.)?getDriveFile=function\(\)\{return (\{.*?\})\}", js)
-          assert mm, 'Could not parse getDriveFile'
-          meta = json.loads(mm.group(1))
-          print('ROOT_META=', json.dumps(meta, indent=2)[:12000])
-          rootid = str(meta['file_id'])
 
-          probes=[]
-          roots = [f"{base}/drive/webapi/entry.cgi", f"{base}/drive/d/s/{perm}/webapi/entry.cgi"]
-          paths = [f'id:{rootid}', json.dumps(f'id:{rootid}')]
-          extras = [
+          markers=['getDriveFile=function(){return ','window.getDriveFile=function(){return ']
+          start=None
+          for marker in markers:
+              p=js.find(marker)
+              if p>=0:
+                  start=p+len(marker); break
+          assert start is not None, 'Could not find getDriveFile marker'
+          depth=0; end=None; in_string=False; esc=False
+          for i,ch in enumerate(js[start:], start):
+              if in_string:
+                  if esc: esc=False
+                  elif ch=='\\': esc=True
+                  elif ch=='"': in_string=False
+                  continue
+              if ch=='"': in_string=True
+              elif ch=='{': depth+=1
+              elif ch=='}':
+                  depth-=1
+                  if depth==0:
+                      end=i+1; break
+          assert end is not None
+          meta=json.loads(js[start:end])
+          print('ROOT_META=', json.dumps(meta, indent=2)[:12000])
+          rootid=str(meta['file_id'])
+
+          roots=[f"{base}/drive/webapi/entry.cgi", f"{base}/drive/d/s/{perm}/webapi/entry.cgi"]
+          paths=[f'id:{rootid}', json.dumps(f'id:{rootid}')]
+          extras=[
               {'sharing_token': json.dumps(token)},
               {'sharing_token': token},
               {'sharing_link': json.dumps(sharing), 'sharing_token': json.dumps(token)},
+              {'sharing_link': sharing, 'sharing_token': token},
           ]
           for endpoint in roots:
             for path in paths:
               for extra in extras:
                 params={'api':'SYNO.SynologyDrive.Files','method':'list','version':'2','path':path,'offset':0,'limit':1000}
                 params.update(extra)
-                rr=s.get(endpoint, params=params, timeout=30)
-                text=rr.text
-                probes.append((rr.url,rr.status_code,text))
-                print('\nPROBE', rr.status_code, rr.url)
-                print(text[:12000])
+                rr=s.get(endpoint,params=params,timeout=30)
+                print('\nPROBE',rr.status_code,rr.url)
+                print(rr.text[:12000])
                 try:
-                  j=rr.json()
-                  items=(j.get('data') or {}).get('items') or []
+                  j=rr.json(); data=j.get('data') or {}; items=data.get('items') or data.get('files') or []
                   if items:
-                    print('SUCCESS_ITEMS=',json.dumps(items,indent=2)[:30000])
-                    sys.exit(0)
-                except Exception:
-                  pass
+                    print('SUCCESS_ITEMS=',json.dumps(items,indent=2)[:50000]); sys.exit(0)
+                except Exception: pass
           raise SystemExit('No listing probe returned items')
           PY
