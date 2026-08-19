@@ -1,0 +1,95 @@
+name: Finalize two commits - remove legacy bag placeholders
+
+on:
+  push:
+    branches: [automation/finalize-two-commits]
+
+permissions:
+  contents: write
+
+env:
+  BASE_SHA: e1c0395848f2ceb7fb8af028772218bc489517d0
+  EXPECTED_MAIN_SHA: 79bcfb5980941cb6bdac12d3bb769ec98882d77f
+
+jobs:
+  finalize:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout current main and materialize LFS data
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          lfs: true
+
+      - name: Guard main and preserve the validated dataset
+        shell: bash
+        run: |
+          set -euxo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_MAIN_SHA"
+          rm -rf /tmp/final_dataset
+          mkdir -p /tmp/final_dataset/bags /tmp/final_dataset/tools
+          cp .gitignore /tmp/final_dataset/.gitignore
+          cp .gitattributes /tmp/final_dataset/.gitattributes
+          cp bags/README.md /tmp/final_dataset/bags/README.md
+          cp -a bags/raw /tmp/final_dataset/bags/raw
+          cp -a study_data /tmp/final_dataset/study_data
+          cp tools/extract_static_rosbags.py /tmp/final_dataset/tools/extract_static_rosbags.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git lfs install
+
+      - name: Rebuild commit 1 from the original pre-dataset base
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git switch -C corrected-two-commits "$BASE_SHA"
+          cp /tmp/final_dataset/.gitignore .gitignore
+          cp /tmp/final_dataset/.gitattributes .gitattributes
+          git rm -f --ignore-unmatch \
+            bags/.gitkeep \
+            bags/README.txt \
+            bags/rosbag2_2026_08_07-21_13_45_0.mcap \
+            bags/rosbag2_2026_08_07-21_31_58_0.mcap \
+            bags/rosbag2_2026_08_07-21_48_31_0.mcap
+          rm -rf bags/raw
+          mkdir -p bags
+          cp /tmp/final_dataset/bags/README.md bags/README.md
+          cp -a /tmp/final_dataset/bags/raw bags/raw
+          git add .gitignore .gitattributes bags/README.md
+          git add -f bags/raw
+          git commit -m 'Add raw Unitree L1 rosbags for HcMR lab and ISR 5th floor'
+
+      - name: Rebuild commit 2 with the verified static subsets
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf study_data
+          mkdir -p tools
+          cp -a /tmp/final_dataset/study_data study_data
+          cp /tmp/final_dataset/tools/extract_static_rosbags.py tools/extract_static_rosbags.py
+          git add tools/extract_static_rosbags.py
+          git add -f study_data
+          git commit -m 'Add verified static rosbags for single-scan and three-scan ICP studies'
+
+      - name: Validate repository structure and publish exactly two commits
+        shell: bash
+        run: |
+          set -euxo pipefail
+          test "$(git rev-list --count "$BASE_SHA"..HEAD)" -eq 2
+          test -f bags/README.md
+          test -d bags/raw/HcMR_lab_2026-08-07_21-13-45
+          test -d bags/raw/ISR_5th_floor_run_1_2026-08-07_21-31-58
+          test -d bags/raw/ISR_5th_floor_run_2_2026-08-07_21-48-31
+          test ! -e bags/.gitkeep
+          test ! -e bags/README.txt
+          test ! -e bags/rosbag2_2026_08_07-21_13_45_0.mcap
+          test ! -e bags/rosbag2_2026_08_07-21_31_58_0.mcap
+          test ! -e bags/rosbag2_2026_08_07-21_48_31_0.mcap
+          git show HEAD~1:bags/raw/HcMR_lab_2026-08-07_21-13-45/rosbag2_2026_08_07-21_13_45_0.mcap | head -n1 | grep -F 'version https://git-lfs.github.com/spec/v1'
+          git show HEAD:study_data/approach_1_single_static/HcMR_lab/scan_01/static_segment.mcap | head -n1 | grep -F 'version https://git-lfs.github.com/spec/v1'
+          git log --oneline "$BASE_SHA"..HEAD
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "$EXPECTED_MAIN_SHA"
+          git push --force-with-lease=refs/heads/main:$EXPECTED_MAIN_SHA origin HEAD:main
