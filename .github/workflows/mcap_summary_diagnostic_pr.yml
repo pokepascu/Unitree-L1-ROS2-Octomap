@@ -1,0 +1,40 @@
+name: Observable MCAP summary diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install parser dependencies
+        run: python3 -m pip install mcap pyyaml zstandard lz4 requests
+      - name: Retrieve diagnostic scripts from PR head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euxo pipefail
+          git fetch origin automation/nas-ingest:refs/remotes/origin/automation/nas-ingest
+          mkdir -p /tmp/diag
+          git show origin/automation/nas-ingest:tools/automation/download_synology_public_folder.py > /tmp/diag/download.py
+          git show origin/automation/nas-ingest:tools/diagnostics/mcap_summary_diagnose.py > /tmp/diag/diagnose.py
+      - name: Download exact NAS data
+        run: python3 /tmp/diag/download.py --out-dir /tmp/nas_download
+      - name: Low-level MCAP diagnostic
+        run: |
+          set -euxo pipefail
+          python3 /tmp/diag/diagnose.py --out-dir /tmp/mcap_diagnostic \
+            /tmp/nas_download/rosbag2_2026_08_07-21_13_45/rosbag2_2026_08_07-21_13_45_0.mcap \
+            /tmp/nas_download/rosbag2_2026_08_07-21_31_58/rosbag2_2026_08_07-21_31_58_0.mcap \
+            /tmp/nas_download/rosbag2_2026_08_07-21_48_31/rosbag2_2026_08_07-21_48_31_0.mcap
+          cat /tmp/mcap_diagnostic/report.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcap-summary-diagnostic-pr
+          path: /tmp/mcap_diagnostic/
