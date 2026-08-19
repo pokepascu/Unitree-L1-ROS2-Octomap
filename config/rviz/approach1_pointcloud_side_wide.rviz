@@ -1,0 +1,51 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Axes
+      Enabled: true
+      Length: 0.6
+      Name: LiDAR axes
+      Radius: 0.025
+      Reference Frame: unilidar_lidar
+      Value: true
+    - Alpha: 1
+      Axis: Z
+      Class: rviz_default_plugins/PointCloud2
+      Color Transformer: AxisColor
+      Decay Time: 120
+      Enabled: true
+      Name: Accumulated Unitree L1 PointCloud2
+      Position Transformer: XYZ
+      Size (Pixels): 4
+      Size (m): 0.035
+      Style: Points
+      Topic:
+        Depth: 50
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /unilidar/cloud
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 15; 15; 18
+    Fixed Frame: unilidar_lidar
+    Frame Rate: 30
+  Name: root
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 42
+      Focal Point: {X: 0, Y: 0, Z: 0.8}
+      Name: Wide side
+      Pitch: 0.08
+      Target Frame: unilidar_lidar
+      Value: Orbit (rviz_default_plugins)
+      Yaw: 0.0
+    Saved: ~
+Window Geometry: {Height: 900, Width: 1600, X: 0, Y: 0}
