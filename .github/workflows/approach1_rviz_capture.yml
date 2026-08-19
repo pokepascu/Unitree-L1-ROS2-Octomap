@@ -2,8 +2,8 @@ name: Approach 1 RViz visual evidence
 
 on:
   workflow_dispatch:
-  push:
-    branches: [analysis/approach-1-static]
+  pull_request:
+    branches: [main]
     paths:
       - 'config/rviz/**'
       - 'docker/Dockerfile'
@@ -14,8 +14,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: approach1-rviz-evidence
-  cancel-in-progress: false
+  group: approach1-rviz-evidence-pr
+  cancel-in-progress: true
 
 jobs:
   rviz-pointcloud-evidence:
@@ -36,6 +36,7 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Install capture tools
         shell: bash
@@ -103,6 +104,7 @@ jobs:
 
       - name: Commit RViz evidence
         shell: bash
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         run: |
           set -euxo pipefail
           git config user.name 'github-actions[bot]'
