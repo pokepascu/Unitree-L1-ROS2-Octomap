@@ -1,0 +1,118 @@
+{
+  "method": "multi-start point-to-point ICP",
+  "reference": "scan_01",
+  "voxel_m": 0.05,
+  "range_m": [
+    0.25,
+    15.0
+  ],
+  "extrinsic_rotation_assumed": false,
+  "scans": {
+    "scan_01": {
+      "points": 64355,
+      "cloud_frames": 272,
+      "frame_ids": [
+        "unilidar_lidar"
+      ],
+      "selection_pose_xyz_m": [
+        1.862,
+        -1.07,
+        0.0
+      ]
+    },
+    "scan_02": {
+      "points": 16596,
+      "cloud_frames": 26,
+      "frame_ids": [
+        "unilidar_lidar"
+      ],
+      "selection_pose_xyz_m": [
+        2.307,
+        -3.125,
+        0.0
+      ],
+      "registration_to_scan_01": {
+        "fitness": 0.9673415280790552,
+        "rmse_m": 0.0472802551045974,
+        "correspondences": 16054,
+        "initial_yaw_hypothesis_deg": 30,
+        "recorded_stationary_position_displacement_m": 2.1026293063685757,
+        "icp_translation_norm_m": 2.0144677048432293,
+        "transform_source_to_scan01": [
+          [
+            0.9458154029089719,
+            -0.32470148884842776,
+            -0.0014719917616056793,
+            1.9608239215815222
+          ],
+          [
+            0.3246890111641262,
+            0.9458043612352146,
+            -0.005581782662927373,
+            -0.46134710285950226
+          ],
+          [
+            0.0032046293689100597,
+            0.004801396468769889,
+            0.9999833383324703,
+            -0.020212201590915115
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ]
+      }
+    },
+    "scan_03": {
+      "points": 16215,
+      "cloud_frames": 27,
+      "frame_ids": [
+        "unilidar_lidar"
+      ],
+      "selection_pose_xyz_m": [
+        1.949,
+        -5.399,
+        0.0
+      ],
+      "registration_to_scan_01": {
+        "fitness": 0.8442799876657416,
+        "rmse_m": 0.06391019004990277,
+        "correspondences": 13690,
+        "initial_yaw_hypothesis_deg": 180,
+        "recorded_stationary_position_displacement_m": 4.329874132119778,
+        "icp_translation_norm_m": 1.5151029803503027,
+        "transform_source_to_scan01": [
+          [
+            -0.9993861778338468,
+            -0.027283604390921548,
+            0.021974359742544584,
+            1.318522980159279
+          ],
+          [
+            0.027402670616897534,
+            -0.9996112840992554,
+            0.005135595827049585,
+            -0.7463415078187469
+          ],
+          [
+            0.021825700394647145,
+            0.0057345996265369065,
+            0.9997453441599065,
+            -0.0029232798536594686
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ]
+      }
+    }
+  },
+  "merged_points": 72695,
+  "caution": "ICP estimates sensor-frame rigid transforms from measured geometry. Recorded stop positions are diagnostics only; no unknown LiDAR rotation was invented."
+}
