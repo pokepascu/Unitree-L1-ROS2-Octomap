@@ -1,6 +1,4 @@
-# Recorded sensor data (keep only the directory placeholder).
-/bags/*
-!/bags/.gitkeep
+# Recorded sensor data are tracked explicitly with Git LFS.
 
 # ROS/colcon output, if a developer chooses to build outside the image.
 build/
