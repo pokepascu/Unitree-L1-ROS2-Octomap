@@ -9,9 +9,7 @@ Visualization Manager:
       Class: rviz_default_plugins/Grid
       Color: 100; 100; 100
       Enabled: false
-      Line Style:
-        Line Width: 0.01
-        Value: Lines
+      Line Style: {Line Width: 0.01, Value: Lines}
       Name: Grid
       Plane: XY
       Plane Cell Count: 20
@@ -29,44 +27,22 @@ Visualization Manager:
       Name: Occupied OctoMap Voxels
       Namespaces: {}
       Queue Size: 100
-      Topic:
-        Depth: 1
-        Durability Policy: Transient Local
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /occupied_cells_vis_array
+      Topic: {Depth: 1, Durability Policy: Transient Local, History Policy: Keep Last, Reliability Policy: Reliable, Value: /occupied_cells_vis_array}
       Value: true
   Enabled: true
-  Global Options:
-    Background Color: 15; 15; 18
-    Fixed Frame: unilidar_lidar
-    Frame Rate: 30
+  Global Options: {Background Color: 15; 15; 18, Fixed Frame: unilidar_lidar, Frame Rate: 30}
   Name: root
-  Tools:
-    - Class: rviz_default_plugins/Interact
-    - Class: rviz_default_plugins/MoveCamera
-    - Class: rviz_default_plugins/Select
-    - Class: rviz_default_plugins/FocusCamera
-  Transformation:
-    Current:
-      Class: rviz_default_plugins/TF
+  Transformation: {Current: {Class: rviz_default_plugins/TF}}
   Value: true
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 38
-      Focal Point:
-        X: 0
-        Y: 0
-        Z: 0.5
-      Name: Wide isometric
+      Distance: 26
+      Focal Point: {X: 0, Y: 0, Z: 0.5}
+      Name: Fitted isometric evidence
       Pitch: 0.62
       Target Frame: unilidar_lidar
       Value: Orbit (rviz_default_plugins)
       Yaw: 0.785
     Saved: ~
-Window Geometry:
-  Height: 900
-  Width: 1600
-  X: 0
-  Y: 0
+Window Geometry: {Height: 900, Width: 1600, X: 0, Y: 0}
