@@ -40,9 +40,9 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 42
+      Distance: 26
       Focal Point: {X: 0, Y: 0, Z: 0.8}
-      Name: Wide side
+      Name: Evidence side fitted
       Pitch: 0.08
       Target Frame: unilidar_lidar
       Value: Orbit (rviz_default_plugins)
