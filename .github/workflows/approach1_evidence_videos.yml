@@ -7,6 +7,8 @@ on:
       - 'tools/approach_1/generate_evidence_videos.py'
       - 'config/approach_1/**'
       - '.github/workflows/approach1_evidence_videos.yml'
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -14,6 +16,7 @@ permissions:
 
 jobs:
   evidence:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
@@ -21,6 +24,7 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Install dependencies
         run: |
@@ -31,32 +35,16 @@ jobs:
 
       - name: Rebuild derived clouds needed by evidence generator
         run: |
-          python3 tools/approach_1/analyze_static_cloud.py \
-            --bag study_data/approach_1_single_static/HcMR_lab/scan_01/static_segment.mcap \
-            --config config/approach_1/hcmr.yaml \
-            --out results/approach_1/HcMR_lab
-          python3 tools/approach_1/analyze_static_cloud.py \
-            --bag study_data/approach_1_single_static/ISR_5th_floor/scan_01/static_segment.mcap \
-            --config config/approach_1/isr_5th_floor.yaml \
-            --out results/approach_1/ISR_5th_floor
+          python3 tools/approach_1/analyze_static_cloud.py --bag study_data/approach_1_single_static/HcMR_lab/scan_01/static_segment.mcap --config config/approach_1/hcmr.yaml --out results/approach_1/HcMR_lab
+          python3 tools/approach_1/analyze_static_cloud.py --bag study_data/approach_1_single_static/ISR_5th_floor/scan_01/static_segment.mcap --config config/approach_1/isr_5th_floor.yaml --out results/approach_1/ISR_5th_floor
 
       - name: Generate HcMR verification videos
         run: |
-          python3 tools/approach_1/generate_evidence_videos.py \
-            --bag study_data/approach_1_single_static/HcMR_lab/scan_01/static_segment.mcap \
-            --config config/approach_1/hcmr.yaml \
-            --analysis-dir results/approach_1/HcMR_lab \
-            --evidence-dir results/approach_1/evidence/HcMR_lab \
-            --label 'HcMR laboratory'
+          python3 tools/approach_1/generate_evidence_videos.py --bag study_data/approach_1_single_static/HcMR_lab/scan_01/static_segment.mcap --config config/approach_1/hcmr.yaml --analysis-dir results/approach_1/HcMR_lab --evidence-dir results/approach_1/evidence/HcMR_lab --label 'HcMR laboratory'
 
       - name: Generate ISR 5th-floor verification videos
         run: |
-          python3 tools/approach_1/generate_evidence_videos.py \
-            --bag study_data/approach_1_single_static/ISR_5th_floor/scan_01/static_segment.mcap \
-            --config config/approach_1/isr_5th_floor.yaml \
-            --analysis-dir results/approach_1/ISR_5th_floor \
-            --evidence-dir results/approach_1/evidence/ISR_5th_floor \
-            --label 'ISR 5th floor'
+          python3 tools/approach_1/generate_evidence_videos.py --bag study_data/approach_1_single_static/ISR_5th_floor/scan_01/static_segment.mcap --config config/approach_1/isr_5th_floor.yaml --analysis-dir results/approach_1/ISR_5th_floor --evidence-dir results/approach_1/evidence/ISR_5th_floor --label 'ISR 5th floor'
 
       - name: Write organized evidence README
         shell: bash
@@ -65,37 +53,21 @@ jobs:
           cat > results/approach_1/evidence/README.md <<'EOF'
           # Visual verification evidence - Approach 1
 
-          This directory is the visual audit trail for the single-station Unitree L1 analysis. The files are derived from the verified static MCAP subsets; the source bags remain unchanged.
+          This directory is the visual audit trail for the single-station Unitree L1 analysis. Files are derived from verified static MCAP subsets; source bags remain unchanged.
 
-          ## Reading order
+          | Video | Verification purpose | Limitation |
+          |---|---|---|
+          | `01_raw_pointcloud_accumulation.mp4` | Decoding, continuity and spatial accumulation of `/unilidar/cloud` | Moving people can leave transient geometry |
+          | `02_conservative_cleaned_rotation.mp4` | 3D inspection after range filtering, 5 cm voxelization, Statistical Outlier Removal and Radius Outlier Removal | Not semantic human removal |
+          | `03_dynamic_foreground_evolution.mp4` | Low-temporal-persistence foreground candidates | Persistent people may look static; candidates are not truth labels |
+          | `04_odometry_stationarity.mp4` | `/odom` trajectory and speed histories versus 0.02 m/s and 0.02 rad/s thresholds | Wheel odometry is not external ground truth |
 
-          Each environment contains the same four numbered videos so that HcMR and ISR 5th-floor results can be inspected consistently.
+          HcMR uses 115 LiDAR frames over about 14.87 s. Two people were known to be present, so foreground candidates are kept separate and no automatic person-identification claim is made. ISR 5th floor uses 272 frames over about 35.18 s.
 
-          | Video | What is shown | Verification purpose | Important limitation |
-          |---|---|---|---|
-          | `01_raw_pointcloud_accumulation.mp4` | Sequential accumulation of decoded `/unilidar/cloud` frames in `unilidar_lidar` | Verifies PointCloud2 decoding, frame continuity and spatial accumulation | Moving people can leave transient/smeared geometry |
-          | `02_conservative_cleaned_rotation.mp4` | 360-degree inspection of the cloud retained after range filtering, 5 cm voxelization, Statistical Outlier Removal and Radius Outlier Removal | Verifies that structural geometry survives cleaning and reveals remaining artefacts | This is not semantic human removal |
-          | `03_dynamic_foreground_evolution.mp4` | Low-temporal-persistence voxels overlaid on higher-persistence structure | Verifies the temporal foreground mask used to flag possible moving people/objects | A persistent standing person may look static; candidates are not truth labels |
-          | `04_odometry_stationarity.mp4` | `/odom` XY trajectory plus linear and angular speed histories | Verifies that the selected interval satisfies the stationarity criterion | Wheel odometry is not external ground truth |
-
-          ## HcMR laboratory
-
-          - Source subset: `study_data/approach_1_single_static/HcMR_lab/scan_01/static_segment.mcap`
-          - 115 LiDAR frames over about 14.87 s, ~7.73 Hz.
-          - Two people were known to be present in the room. The analysis therefore keeps dynamic/foreground candidates separate and does not claim automatic person identification.
-
-          ## ISR 5th floor
-
-          - Source subset: `study_data/approach_1_single_static/ISR_5th_floor/scan_01/static_segment.mcap`
-          - 272 LiDAR frames over about 35.18 s, ~7.73 Hz.
-
-          ## Interpretation rule
-
-          These videos are evidence of data exploitation and algorithm behaviour, not decorative renders. A result is accepted only when the numerical outputs (`metrics.json`, `pointcloud2_schema.json`, configuration YAML) and the visual evidence tell a coherent story. Occluded surfaces are never hallucinated or filled in from a single LiDAR viewpoint.
+          Numerical evidence is stored beside the images in `metrics.json`, `pointcloud2_schema.json`, and `config_used.yaml`. Occluded surfaces are not hallucinated or filled in.
           EOF
 
       - name: Remove large non-video intermediates before repository commit
-        shell: bash
         run: |
           find results/approach_1 -name '*.ply' -delete
           find results/approach_1 -name '*.npz' -delete
@@ -103,9 +75,8 @@ jobs:
           rm -f results/approach_1/HcMR_lab/conservative_cleaned_rotation.mp4 results/approach_1/ISR_5th_floor/conservative_cleaned_rotation.mp4 || true
 
       - name: Commit videos and evidence documentation
-        shell: bash
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         run: |
-          set -euxo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git lfs install
