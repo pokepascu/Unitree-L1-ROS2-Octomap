@@ -15,17 +15,57 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install Synology public-link downloader
+      - name: Probe Synology public-folder API
+        shell: bash
         run: |
           set -euxo pipefail
-          cargo install --git https://github.com/jerry73204/synology-dl --locked || cargo install --git https://github.com/jerry73204/synology-dl
-      - name: Download and inspect shared files
-        run: |
-          set -euxo pipefail
-          rm -rf /tmp/nas_download
-          mkdir -p /tmp/nas_download
-          synology-dl -f "$SHARE_URL" /tmp/nas_download
-          find /tmp/nas_download -maxdepth 6 -type f -printf '%p\t%s bytes\n' | sort
-          COUNT=$(find /tmp/nas_download -type f -name '*.mcap' -size +100k | wc -l)
-          echo "Real MCAP files found: $COUNT"
-          test "$COUNT" -ge 3
+          python3 - <<'PY'
+          import json, re, requests, sys
+          from urllib.parse import quote
+
+          share = "https://nas-greenbotics.isr.uc.pt/drive/d/s/19Nbg4F76IZ5qEWUbGyWhFfmqULZf0kO/lzGW7jJopGGo_ZGmhFpz4dQizFZiahPs-P7_gYpHyaA0"
+          m = re.match(r"^(https?://[^/]+)/drive/d/s/([^/]+)/([^/?]+)", share)
+          base, perm, sharing = m.groups()
+          s = requests.Session()
+          r = s.get(share, timeout=30)
+          r.raise_for_status()
+          cookies = [c for c in s.cookies if c.name.startswith('drive-sharing-')]
+          assert cookies, 'No drive-sharing cookie'
+          token = cookies[0].value
+          api = (f"{base}/drive/webapi/entry.cgi?api=SYNO.SynologyDrive.Shard&version=1&method=getjs"
+                 f"&permanent_link={quote(json.dumps(perm))}&sharing_link={quote(json.dumps(sharing))}")
+          js = s.get(api, timeout=30).text
+          mm = re.search(r"(?:window\.)?getDriveFile=function\(\)\{return (\{.*?\})\}", js)
+          assert mm, 'Could not parse getDriveFile'
+          meta = json.loads(mm.group(1))
+          print('ROOT_META=', json.dumps(meta, indent=2)[:12000])
+          rootid = str(meta['file_id'])
+
+          probes=[]
+          roots = [f"{base}/drive/webapi/entry.cgi", f"{base}/drive/d/s/{perm}/webapi/entry.cgi"]
+          paths = [f'id:{rootid}', json.dumps(f'id:{rootid}')]
+          extras = [
+              {'sharing_token': json.dumps(token)},
+              {'sharing_token': token},
+              {'sharing_link': json.dumps(sharing), 'sharing_token': json.dumps(token)},
+          ]
+          for endpoint in roots:
+            for path in paths:
+              for extra in extras:
+                params={'api':'SYNO.SynologyDrive.Files','method':'list','version':'2','path':path,'offset':0,'limit':1000}
+                params.update(extra)
+                rr=s.get(endpoint, params=params, timeout=30)
+                text=rr.text
+                probes.append((rr.url,rr.status_code,text))
+                print('\nPROBE', rr.status_code, rr.url)
+                print(text[:12000])
+                try:
+                  j=rr.json()
+                  items=(j.get('data') or {}).get('items') or []
+                  if items:
+                    print('SUCCESS_ITEMS=',json.dumps(items,indent=2)[:30000])
+                    sys.exit(0)
+                except Exception:
+                  pass
+          raise SystemExit('No listing probe returned items')
+          PY
