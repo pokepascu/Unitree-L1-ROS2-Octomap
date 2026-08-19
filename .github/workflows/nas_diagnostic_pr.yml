@@ -15,72 +15,57 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Probe Synology public-folder API
+      - name: Recursively inventory Synology public folder
         shell: bash
         run: |
           set -euxo pipefail
           python3 - <<'PY'
-          import json, re, requests, sys
+          import json, re, requests
           from urllib.parse import quote
 
           share = "https://nas-greenbotics.isr.uc.pt/drive/d/s/19Nbg4F76IZ5qEWUbGyWhFfmqULZf0kO/lzGW7jJopGGo_ZGmhFpz4dQizFZiahPs-P7_gYpHyaA0"
           m = re.match(r"^(https?://[^/]+)/drive/d/s/([^/]+)/([^/?]+)", share)
           base, perm, sharing = m.groups()
-          s = requests.Session()
-          r = s.get(share, timeout=30)
-          r.raise_for_status()
-          cookies = [c for c in s.cookies if c.name.startswith('drive-sharing-')]
-          assert cookies, 'No drive-sharing cookie'
-          token = cookies[0].value
-          api = (f"{base}/drive/webapi/entry.cgi?api=SYNO.SynologyDrive.Shard&version=1&method=getjs"
-                 f"&permanent_link={quote(json.dumps(perm))}&sharing_link={quote(json.dumps(sharing))}")
-          js = s.get(api, timeout=30).text
-
-          markers=['getDriveFile=function(){return ','window.getDriveFile=function(){return ']
-          start=None
-          for marker in markers:
-              p=js.find(marker)
-              if p>=0:
-                  start=p+len(marker); break
-          assert start is not None, 'Could not find getDriveFile marker'
-          depth=0; end=None; in_string=False; esc=False
-          for i,ch in enumerate(js[start:], start):
-              if in_string:
+          s = requests.Session(); r=s.get(share,timeout=30); r.raise_for_status()
+          token=[c.value for c in s.cookies if c.name.startswith('drive-sharing-')][0]
+          api=(f"{base}/drive/webapi/entry.cgi?api=SYNO.SynologyDrive.Shard&version=1&method=getjs"
+               f"&permanent_link={quote(json.dumps(perm))}&sharing_link={quote(json.dumps(sharing))}")
+          js=s.get(api,timeout=30).text
+          marker='getDriveFile=function(){return '; p=js.find(marker)
+          if p<0:
+              marker='window.getDriveFile=function(){return '; p=js.find(marker)
+          start=p+len(marker); depth=0; ins=False; esc=False; end=None
+          for i,ch in enumerate(js[start:],start):
+              if ins:
                   if esc: esc=False
                   elif ch=='\\': esc=True
-                  elif ch=='"': in_string=False
+                  elif ch=='"': ins=False
                   continue
-              if ch=='"': in_string=True
+              if ch=='"': ins=True
               elif ch=='{': depth+=1
               elif ch=='}':
                   depth-=1
-                  if depth==0:
-                      end=i+1; break
-          assert end is not None
-          meta=json.loads(js[start:end])
-          print('ROOT_META=', json.dumps(meta, indent=2)[:12000])
-          rootid=str(meta['file_id'])
-
-          roots=[f"{base}/drive/webapi/entry.cgi", f"{base}/drive/d/s/{perm}/webapi/entry.cgi"]
-          paths=[f'id:{rootid}', json.dumps(f'id:{rootid}')]
-          extras=[
-              {'sharing_token': json.dumps(token)},
-              {'sharing_token': token},
-              {'sharing_link': json.dumps(sharing), 'sharing_token': json.dumps(token)},
-              {'sharing_link': sharing, 'sharing_token': token},
-          ]
-          for endpoint in roots:
-            for path in paths:
-              for extra in extras:
-                params={'api':'SYNO.SynologyDrive.Files','method':'list','version':'2','path':path,'offset':0,'limit':1000}
-                params.update(extra)
-                rr=s.get(endpoint,params=params,timeout=30)
-                print('\nPROBE',rr.status_code,rr.url)
-                print(rr.text[:12000])
-                try:
-                  j=rr.json(); data=j.get('data') or {}; items=data.get('items') or data.get('files') or []
-                  if items:
-                    print('SUCCESS_ITEMS=',json.dumps(items,indent=2)[:50000]); sys.exit(0)
-                except Exception: pass
-          raise SystemExit('No listing probe returned items')
+                  if depth==0: end=i+1; break
+          root=json.loads(js[start:end])
+          endpoint=f"{base}/drive/webapi/entry.cgi"
+          def listdir(fid):
+              params={'api':'SYNO.SynologyDrive.Files','method':'list','version':'2','path':f'id:{fid}','offset':0,'limit':1000,'sharing_token':json.dumps(token)}
+              rr=s.get(endpoint,params=params,timeout=60); rr.raise_for_status(); j=rr.json()
+              assert j.get('success'), j
+              return (j.get('data') or {}).get('items') or []
+          rows=[]
+          def walk(item,prefix=''):
+              path=f"{prefix}/{item['name']}" if prefix else item['name']
+              rows.append({'path':path,'file_id':item['file_id'],'type':item.get('type'),'content_type':item.get('content_type'),'size':item.get('size',0),'hash':item.get('hash','')})
+              if item.get('type')=='dir' or item.get('content_type')=='dir':
+                  for child in listdir(item['file_id']): walk(child,path)
+          for child in listdir(root['file_id']): walk(child)
+          print('INVENTORY_JSON=')
+          print(json.dumps(rows,indent=2))
+          mcaps=[x for x in rows if x['path'].lower().endswith('.mcap')]
+          print('\nMCAP_SUMMARY')
+          for x in mcaps: print(f"{x['path']}\t{x['size']} bytes\t{x['file_id']}")
+          print(f"MCAP_COUNT={len(mcaps)}")
+          print(f"MCAP_TOTAL_BYTES={sum(int(x['size']) for x in mcaps)}")
+          assert len(mcaps)>=3, f'Expected at least 3 MCAP files, found {len(mcaps)}'
           PY
