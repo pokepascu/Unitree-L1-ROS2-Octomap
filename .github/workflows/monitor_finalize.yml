@@ -1,0 +1,30 @@
+name: Monitor final two-commit rewrite
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  monitor:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Monitor finalize workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euxo pipefail
+          sleep 8
+          RUN_ID=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow finalize_two_commits.yml --branch automation/finalize-two-commits --event push --limit 1 --json databaseId --jq '.[0].databaseId')
+          test -n "$RUN_ID"
+          echo "Monitoring finalize run $RUN_ID"
+          if ! gh run watch "$RUN_ID" --repo "$GITHUB_REPOSITORY" --exit-status --interval 5; then
+            echo '--- FAILED LOGS ---'
+            gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed || true
+            exit 1
+          fi
+          echo '--- COMPLETE LOG ---'
+          gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --log
