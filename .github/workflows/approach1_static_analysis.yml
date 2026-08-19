@@ -1,0 +1,79 @@
+name: Approach 1 static point-cloud analysis
+
+on:
+  push:
+    branches: [analysis/approach-1-static]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python3 -m pip install --upgrade pip
+          python3 -m pip install mcap mcap-ros2-support numpy scipy matplotlib pyyaml open3d
+
+      - name: Run HcMR static analysis
+        run: |
+          python3 tools/approach_1/analyze_static_cloud.py \
+            --bag study_data/approach_1_single_static/HcMR_lab/scan_01/static_segment.mcap \
+            --config config/approach_1/hcmr.yaml \
+            --out results/approach_1/HcMR_lab
+
+      - name: Run ISR 5th-floor static analysis
+        run: |
+          python3 tools/approach_1/analyze_static_cloud.py \
+            --bag study_data/approach_1_single_static/ISR_5th_floor/scan_01/static_segment.mcap \
+            --config config/approach_1/isr_5th_floor.yaml \
+            --out results/approach_1/ISR_5th_floor
+
+      - name: Write analysis manifest
+        shell: bash
+        run: |
+          mkdir -p results/approach_1
+          cat > results/approach_1/README.md <<'EOF'
+          # Approach 1 - single stationary Unitree L1 scan
+
+          Derived analysis outputs for the verified static HcMR and ISR 5th-floor datasets.
+
+          The conservative cleaned cloud removes invalid/range-rejected and sparse statistical/radius outliers. Low-persistence near-field voxels are written separately as `dynamic_foreground_candidates.ply`; they are **not automatically deleted** from the conservative cloud. Compact vertical foreground clusters are reported as ambiguous review candidates rather than asserted to be people.
+
+          No hidden surface behind a person or other occluder is reconstructed from a single viewpoint.
+          EOF
+          printf 'source_commit: %s\n' "$(git rev-parse HEAD)" > results/approach_1/manifest.yaml
+          python3 --version >> results/approach_1/manifest.yaml
+          git lfs version >> results/approach_1/manifest.yaml
+
+      - name: Upload complete analysis artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: approach1-static-results
+          path: results/approach_1/
+          if-no-files-found: error
+
+      - name: Commit compact reproducible results to analysis branch
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Keep tools/config and compact evidence. Large intermediate clouds/video stay in the workflow artifact for now.
+          find results/approach_1 -name '*.ply' -delete
+          find results/approach_1 -name '*.npz' -delete
+          find results/approach_1 -name '*.mp4' -delete
+          find results/approach_1 -type d -name video_frames -prune -exec rm -rf {} + || true
+          git add tools/approach_1 config/approach_1 results/approach_1 .github/workflows/approach1_static_analysis.yml
+          git diff --cached --quiet || git commit -m 'Analyze Approach 1 static Unitree L1 point clouds'
+          git push origin HEAD:analysis/approach-1-static
