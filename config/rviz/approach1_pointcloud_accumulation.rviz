@@ -6,24 +6,24 @@ Panels:
 Visualization Manager:
   Class: ""
   Displays:
-    - Alpha: 0.45
-      Cell Size: 1
+    - Alpha: 0.12
+      Cell Size: 2
       Class: rviz_default_plugins/Grid
-      Color: 120; 120; 120
-      Enabled: true
+      Color: 100; 100; 100
+      Enabled: false
       Line Style:
-        Line Width: 0.02
+        Line Width: 0.01
         Value: Lines
       Name: Grid
       Plane: XY
-      Plane Cell Count: 30
+      Plane Cell Count: 20
       Reference Frame: <Fixed Frame>
-      Value: true
+      Value: false
     - Class: rviz_default_plugins/Axes
       Enabled: true
-      Length: 1
+      Length: 0.6
       Name: LiDAR axes
-      Radius: 0.05
+      Radius: 0.025
       Reference Frame: unilidar_lidar
       Value: true
     - Alpha: 1
@@ -32,27 +32,27 @@ Visualization Manager:
       Channel Name: intensity
       Class: rviz_default_plugins/PointCloud2
       Color Transformer: AxisColor
-      Decay Time: 60
+      Decay Time: 120
       Enabled: true
       Name: Accumulated Unitree L1 PointCloud2
       Position Transformer: XYZ
       Selectable: true
-      Size (Pixels): 2
-      Size (m): 0.025
+      Size (Pixels): 4
+      Size (m): 0.035
       Style: Points
       Topic:
-        Depth: 20
+        Depth: 50
         Durability Policy: Volatile
-        Filter size: 20
+        Filter size: 50
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /unilidar/cloud
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
   Enabled: true
   Global Options:
-    Background Color: 28; 28; 32
+    Background Color: 15; 15; 18
     Fixed Frame: unilidar_lidar
     Frame Rate: 30
   Name: root
@@ -69,16 +69,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 12
+      Distance: 38
       Focal Point:
         X: 0
         Y: 0
-        Z: 1.2
-      Name: Isometric verification view
-      Pitch: 0.72
+        Z: 0.5
+      Name: Wide isometric evidence view
+      Pitch: 0.62
       Target Frame: unilidar_lidar
       Value: Orbit (rviz_default_plugins)
-      Yaw: 0.78
+      Yaw: 0.785
     Saved: ~
 Window Geometry:
   Height: 900
