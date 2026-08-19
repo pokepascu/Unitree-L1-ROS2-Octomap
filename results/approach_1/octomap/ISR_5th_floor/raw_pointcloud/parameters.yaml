@@ -1,0 +1,4 @@
+frame_id: unilidar_lidar
+resolution_m: 0.10
+sensor_model_max_range_m: 15.0
+source: verified raw stationary PointCloud2
