@@ -26,10 +26,10 @@ jobs:
       matrix:
         include:
           - env_name: HcMR_lab
-            bag: study_data/approach_1_single_static/HcMR_lab/scan_01/static_segment.mcap
+            bag_dir: study_data/approach_1_single_static/HcMR_lab/scan_01
             record_seconds: 20
           - env_name: ISR_5th_floor
-            bag: study_data/approach_1_single_static/ISR_5th_floor/scan_01/static_segment.mcap
+            bag_dir: study_data/approach_1_single_static/ISR_5th_floor/scan_01
             record_seconds: 42
     steps:
       - uses: actions/checkout@v4
@@ -91,7 +91,7 @@ jobs:
           sleep 1
 
           docker exec rviz_capture bash -lc \
-            'source /opt/ros/humble/setup.bash && source /opt/unitree_ws/install/setup.bash && ros2 bag play /workspace/${{ matrix.bag }} --storage mcap --topics /unilidar/cloud /odom'
+            'source /opt/ros/humble/setup.bash && source /opt/unitree_ws/install/setup.bash && ros2 bag play /workspace/${{ matrix.bag_dir }} --storage mcap --topics /unilidar/cloud /odom'
 
           wait "$FFMPEG_PID" || true
           sleep 3
