@@ -38,84 +38,64 @@ jobs:
           lfs: true
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Verify capture tools
-        shell: bash
-        run: |
-          set -euxo pipefail
-          if ! command -v Xvfb >/dev/null || ! command -v ffmpeg >/dev/null; then
-            sudo apt-get update
-            sudo apt-get install -y xvfb ffmpeg
-          fi
-          Xvfb -help >/dev/null 2>&1 || true
-          ffmpeg -version | head -1
+      - name: Build self-contained ROS 2 RViz capture image
+        run: docker build -t unitree-l1-rviz -f docker/Dockerfile .
 
-      - name: Build existing ROS 2 Humble project image
-        shell: bash
-        run: |
-          docker build -t unitree-l1-rviz -f docker/Dockerfile .
-
-      - name: Start virtual display
-        shell: bash
-        run: |
-          Xvfb :99 -screen 0 1600x900x24 -ac > /tmp/xvfb.log 2>&1 &
-          echo $! > /tmp/xvfb.pid
-          sleep 2
-
-      - name: Start ROS/RViz container
-        shell: bash
-        run: |
-          docker run -d --rm \
-            --name rviz_capture \
-            --network host \
-            -e DISPLAY=:99 \
-            -e QT_X11_NO_MITSHM=1 \
-            -e LIBGL_ALWAYS_SOFTWARE=1 \
-            -v /tmp/.X11-unix:/tmp/.X11-unix \
-            -v "$PWD:/workspace" \
-            unitree-l1-rviz sleep infinity
-
-      - name: Launch RViz2 with canonical accumulation config
-        shell: bash
-        run: |
-          docker exec -d rviz_capture bash -lc \
-            'source /opt/ros/humble/setup.bash && source /opt/unitree_ws/install/setup.bash && rviz2 -d /workspace/config/rviz/approach1_pointcloud_accumulation.rviz > /tmp/rviz.log 2>&1'
-          sleep 10
-          docker exec rviz_capture bash -lc 'pgrep -a rviz2 && ros2 pkg prefix rosbag2_storage_mcap'
-
-      - name: Record RViz while PointCloud2 accumulates
+      - name: Run RViz capture entirely inside container
         shell: bash
         run: |
           set -euxo pipefail
           OUT="results/approach_1/rviz_evidence/${{ matrix.env_name }}/pointcloud"
           mkdir -p "$OUT"
           cp config/rviz/approach1_pointcloud_accumulation.rviz "$OUT/pointcloud_accumulation.rviz"
+          chmod -R 777 results/approach_1/rviz_evidence
 
-          ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 \
-            -t ${{ matrix.record_seconds }} -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p \
-            "$OUT/01_accumulation_rviz.mp4" > /tmp/ffmpeg-video.log 2>&1 &
-          FFMPEG_PID=$!
-          sleep 1
+          docker run --rm \
+            --network host \
+            -v "$PWD:/workspace" \
+            unitree-l1-rviz bash -lc '
+              set -euxo pipefail
+              export DISPLAY=:99
+              export LIBGL_ALWAYS_SOFTWARE=1
+              Xvfb :99 -screen 0 1600x900x24 -ac >/tmp/xvfb.log 2>&1 &
+              XVFB_PID=$!
+              sleep 3
+              source /opt/ros/humble/setup.bash
+              source /opt/unitree_ws/install/setup.bash
+              rviz2 -d /workspace/config/rviz/approach1_pointcloud_accumulation.rviz >/tmp/rviz.log 2>&1 &
+              RVIZ_PID=$!
+              sleep 10
+              kill -0 "$RVIZ_PID"
+              ros2 pkg prefix rosbag2_storage_mcap
 
-          docker exec rviz_capture bash -lc \
-            'source /opt/ros/humble/setup.bash && source /opt/unitree_ws/install/setup.bash && ros2 bag play /workspace/${{ matrix.bag_dir }} --storage mcap --topics /unilidar/cloud /odom'
+              ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 \
+                -t ${{ matrix.record_seconds }} -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p \
+                /workspace/'"$OUT"'/01_accumulation_rviz.mp4 >/tmp/ffmpeg-video.log 2>&1 &
+              FFMPEG_PID=$!
+              sleep 1
 
-          wait "$FFMPEG_PID" || true
-          sleep 3
+              ros2 bag play /workspace/${{ matrix.bag_dir }} --storage mcap --topics /unilidar/cloud /odom
+              wait "$FFMPEG_PID" || true
+              sleep 3
 
-          ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 \
-            "$OUT/02_final_accumulated_isometric.png" > /tmp/ffmpeg-shot.log 2>&1
-          test -s "$OUT/01_accumulation_rviz.mp4"
-          test -s "$OUT/02_final_accumulated_isometric.png"
+              ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 \
+                /workspace/'"$OUT"'/02_final_accumulated_isometric.png >/tmp/ffmpeg-shot.log 2>&1
+
+              test -s /workspace/'"$OUT"'/01_accumulation_rviz.mp4
+              test -s /workspace/'"$OUT"'/02_final_accumulated_isometric.png
+              kill "$RVIZ_PID" || true
+              kill "$XVFB_PID" || true
+            '
 
       - name: Commit RViz evidence
+        if: github.event.pull_request.head.repo.full_name == github.repository
         shell: bash
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         run: |
           set -euxo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git lfs install
-          git add .gitattributes config/rviz results/approach_1/rviz_evidence .github/workflows/approach1_rviz_capture.yml docker/Dockerfile
+          git add .gitattributes docker/Dockerfile config/rviz results/approach_1/rviz_evidence .github/workflows/approach1_rviz_capture.yml
           git diff --cached --quiet || git commit -m "Add RViz PointCloud2 evidence for ${{ matrix.env_name }}"
           git pull --rebase origin analysis/approach-1-static
           git push origin HEAD:analysis/approach-1-static
