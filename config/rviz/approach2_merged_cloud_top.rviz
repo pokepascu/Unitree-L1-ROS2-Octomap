@@ -32,12 +32,12 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 28
-      Focal Point: {X: 0, Y: 0, Z: 0.5}
-      Name: Fitted merged cloud
-      Pitch: 0.62
+      Distance: 30
+      Focal Point: {X: 0, Y: 0, Z: 0}
+      Name: Merged cloud top
+      Pitch: 1.55
       Target Frame: unilidar_lidar
       Value: Orbit (rviz_default_plugins)
-      Yaw: 0.785
+      Yaw: 0.0
     Saved: ~
 Window Geometry: {Height: 900, Width: 1600, X: 0, Y: 0}

@@ -1,0 +1,18 @@
+run_name: ISR_5th_floor_run_1
+source_directory: bags/raw/ISR_5th_floor_run_1_2026-08-07_21-31-58
+source_mcap: bags/raw/ISR_5th_floor_run_1_2026-08-07_21-31-58/rosbag2_2026_08_07-21_31_58_0.mcap
+source_duration_s: 696.045520007
+pointcloud_topic: /unilidar/cloud
+pointcloud_messages: 5359
+odometry_topic: /odom
+odometry_messages: 12067
+tf_topic: /tf
+tf_messages: 12067
+imu_topic: /unilidar/imu
+imu_messages: 142123
+lidar_frame: unilidar_lidar
+robot_base_frame: base_link
+odom_frame: odom
+base_to_lidar_translation_m: [0.0, 0.0, 0.0]
+base_to_lidar_rotation: derived_and_gated_in_results_calibration
+results_directory: results/approach_3/ISR_5th_floor_run_1

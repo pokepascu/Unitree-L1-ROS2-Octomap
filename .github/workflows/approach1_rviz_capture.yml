@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   group: approach1-pointcloud-wide-pr
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   pointcloud:
@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     strategy:
+      fail-fast: false
       max-parallel: 1
       matrix:
         include:
@@ -71,11 +72,11 @@ jobs:
           OUT="/workspace/results/approach_1/rviz_evidence/${{ matrix.env_name }}/pointcloud"
           docker exec a1_pc bash -lc 'pkill -x rviz2 || true'; sleep 2
           docker exec -d a1_pc bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/config/rviz/approach1_pointcloud_top_wide.rviz >/tmp/a1_top.log 2>&1'; sleep 6
-          docker exec a1_pc bash -lc 'source /opt/ros/humble/setup.bash; ros2 bag play /workspace/${{ matrix.bag_dir }} --storage mcap --topics /unilidar/cloud'; sleep 2
+          docker exec a1_pc bash -lc 'source /opt/ros/humble/setup.bash; ros2 bag play /workspace/${{ matrix.bag_dir }} --storage mcap --rate 4.0 --topics /unilidar/cloud'; sleep 2
           docker exec a1_pc bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 '"$OUT"'/03_final_wide_top.png >/dev/null 2>&1'
           docker exec a1_pc bash -lc 'pkill -x rviz2 || true'; sleep 2
           docker exec -d a1_pc bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/config/rviz/approach1_pointcloud_side_wide.rviz >/tmp/a1_side.log 2>&1'; sleep 6
-          docker exec a1_pc bash -lc 'source /opt/ros/humble/setup.bash; ros2 bag play /workspace/${{ matrix.bag_dir }} --storage mcap --topics /unilidar/cloud'; sleep 2
+          docker exec a1_pc bash -lc 'source /opt/ros/humble/setup.bash; ros2 bag play /workspace/${{ matrix.bag_dir }} --storage mcap --rate 4.0 --topics /unilidar/cloud'; sleep 2
           docker exec a1_pc bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 '"$OUT"'/04_final_wide_side.png >/dev/null 2>&1'
 
       - name: Validate and commit
@@ -86,7 +87,7 @@ jobs:
           for F in 01_accumulation_rviz.mp4 02_final_wide_isometric.png 03_final_wide_top.png 04_final_wide_side.png pointcloud_isometric_wide.rviz pointcloud_top_wide.rviz pointcloud_side_wide.rviz; do test -s "$OUT/$F"; done
           git config user.name 'github-actions[bot]'; git config user.email '41898282+github-actions[bot]@users.noreply.github.com'; git lfs install
           git add .gitattributes results/approach_1/rviz_evidence config/rviz .github/workflows/approach1_rviz_capture.yml
-          git diff --cached --quiet || git commit -m "Regenerate wide Approach 1 PointCloud2 evidence for ${{ matrix.env_name }}"
+          git diff --cached --quiet || git commit -m "Regenerate fitted Approach 1 PointCloud2 evidence for ${{ matrix.env_name }}"
           git pull --rebase origin analysis/approach-1-static
           git push origin HEAD:analysis/approach-1-static
 

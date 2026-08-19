@@ -1,0 +1,18 @@
+run_name: HcMR_lab
+source_directory: bags/raw/HcMR_lab_2026-08-07_21-13-45
+source_mcap: bags/raw/HcMR_lab_2026-08-07_21-13-45/rosbag2_2026_08_07-21_13_45_0.mcap
+source_duration_s: 207.479453223
+pointcloud_topic: /unilidar/cloud
+pointcloud_messages: 1596
+odometry_topic: /odom
+odometry_messages: 3474
+tf_topic: /tf
+tf_messages: 3474
+imu_topic: /unilidar/imu
+imu_messages: 42254
+lidar_frame: unilidar_lidar
+robot_base_frame: base_link
+odom_frame: odom
+base_to_lidar_translation_m: [0.0, 0.0, 0.0]
+base_to_lidar_rotation: derived_and_gated_in_results_calibration
+results_directory: results/approach_3/HcMR_lab

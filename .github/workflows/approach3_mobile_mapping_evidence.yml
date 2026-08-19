@@ -1,4 +1,4 @@
-name: Approach 3 mobile LiDAR odometry evidence
+name: Approach 3 complete mobile LiDAR odometry evidence
 
 on:
   workflow_dispatch:
@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'tools/approach_3/**'
+      - 'config/approach_3/**'
       - 'config/rviz/approach3_*.rviz'
       - 'docker/Dockerfile.kiss_icp'
       - '.github/workflows/approach3_mobile_mapping_evidence.yml'
@@ -13,31 +14,36 @@ on:
 permissions:
   contents: write
 
+# Result commits made by earlier matrix entries must never cancel later entries.
 concurrency:
-  group: approach3-mobile-rviz-pr
-  cancel-in-progress: true
+  group: approach3-mobile-complete-pr
+  cancel-in-progress: false
 
 jobs:
   mobile:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-22.04
-    timeout-minutes: 100
+    timeout-minutes: 160
     strategy:
+      fail-fast: false
       max-parallel: 1
       matrix:
         include:
           - run_name: HcMR_lab
             bag_dir: bags/raw/HcMR_lab_2026-08-07_21-13-45
             bag_file: bags/raw/HcMR_lab_2026-08-07_21-13-45/rosbag2_2026_08_07-21_13_45_0.mcap
-            raw_video_seconds: 60
+            capture_seconds: 60
+            camera_distance: 35
           - run_name: ISR_5th_floor_run_1
             bag_dir: bags/raw/ISR_5th_floor_run_1_2026-08-07_21-31-58
             bag_file: bags/raw/ISR_5th_floor_run_1_2026-08-07_21-31-58/rosbag2_2026_08_07-21_31_58_0.mcap
-            raw_video_seconds: 180
+            capture_seconds: 180
+            camera_distance: 75
           - run_name: ISR_5th_floor_run_2
             bag_dir: bags/raw/ISR_5th_floor_run_2_2026-08-07_21-48-31
             bag_file: bags/raw/ISR_5th_floor_run_2_2026-08-07_21-48-31/rosbag2_2026_08_07-21_48_31_0.mcap
-            raw_video_seconds: 145
+            capture_seconds: 145
+            camera_distance: 70
 
     steps:
       - uses: actions/checkout@v4
@@ -46,149 +52,151 @@ jobs:
           lfs: true
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Install rosbag audit dependencies
+      - name: Install deterministic analysis dependencies
         shell: bash
         run: |
           set -euxo pipefail
           python3 -m pip install --upgrade pip
-          python3 -m pip install mcap mcap-ros2-support pyyaml
+          python3 -m pip install mcap mcap-ros2-support numpy pyyaml
 
-      - name: Audit recorded TF and odometry before fusion
+      - name: Prepare run and audit recorded TF / odometry
         shell: bash
         run: |
           set -euxo pipefail
           ROOT="results/approach_3/${{ matrix.run_name }}"
-          mkdir -p "$ROOT/raw_lidar" "$ROOT/odometry" "$ROOT/odometry_baseline" "$ROOT/kiss_icp" "$ROOT/loam_like" "$ROOT/octomap"
+          rm -rf "$ROOT/odometry_lidar_fusion"
+          mkdir -p "$ROOT/raw_lidar" "$ROOT/odometry" "$ROOT/kiss_icp" "$ROOT/calibration" "$ROOT/odometry_lidar_fusion" "$ROOT/loam_like"
           python3 tools/approach_3/audit_mobile_tf.py --bag '${{ matrix.bag_file }}' --out "$ROOT/odometry"
+          cp config/approach_3/lidar_robot_extrinsics.yaml "$ROOT/calibration/lidar_robot_extrinsics.yaml"
           cp config/rviz/approach3_mobile_raw_wide.rviz "$ROOT/raw_lidar/mobile_raw_wide.rviz"
-          cp config/rviz/approach3_odometry_path_wide.rviz "$ROOT/odometry/odometry_path_wide.rviz"
+          cp config/rviz/approach3_odometry_path_wide.rviz /tmp/odom_view.rviz
+          sed -i 's/Distance: 55/Distance: ${{ matrix.camera_distance }}/' /tmp/odom_view.rviz
+          cp /tmp/odom_view.rviz "$ROOT/odometry/odometry_path_fitted.rviz"
 
       - name: Build base ROS 2 evidence image
         run: docker build -t unitree-l1-evidence -f docker/Dockerfile .
 
-      - name: Capture raw mobile LiDAR in RViz without false accumulation
+      - name: Capture raw mobile LiDAR in RViz
         shell: bash
         run: |
           set -euxo pipefail
           ROOT="results/approach_3/${{ matrix.run_name }}"
-          chmod -R a+rwX results/approach_3
+          chmod -R a+rwX "$ROOT"
           docker run -d --rm --name a3_raw --network host -v "$PWD:/workspace" unitree-l1-evidence sleep infinity
           docker exec -d a3_raw bash -lc 'Xvfb :99 -screen 0 1600x900x24 -ac >/tmp/xvfb.log 2>&1'; sleep 3
-          docker exec -d a3_raw bash -lc \
-            'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/config/rviz/approach3_mobile_raw_wide.rviz >/tmp/raw_rviz.log 2>&1'
-          sleep 7
-          docker exec -d a3_raw bash -lc \
-            'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t ${{ matrix.raw_video_seconds }} -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p /workspace/'"$ROOT"'/raw_lidar/01_mobile_raw_rviz.mp4 >/tmp/raw_video.log 2>&1'
-          sleep 1
-          docker exec a3_raw bash -lc \
-            'source /opt/ros/humble/setup.bash; ros2 bag play /workspace/${{ matrix.bag_dir }} --storage mcap --rate 4.0 --topics /unilidar/cloud'
-          sleep 2
-          docker exec a3_raw bash -lc 'pkill -INT -x ffmpeg || true; sleep 2'
-          # Replay a short beginning portion so the still image contains an actual instantaneous scan.
-          docker exec -d a3_raw bash -lc \
-            'source /opt/ros/humble/setup.bash; timeout 4 ros2 bag play /workspace/${{ matrix.bag_dir }} --storage mcap --topics /unilidar/cloud || true'
-          sleep 2
-          docker exec a3_raw bash -lc \
-            'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$ROOT"'/raw_lidar/02_raw_instantaneous_wide.png >/tmp/raw_shot.log 2>&1'
+          docker exec -d a3_raw bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/config/rviz/approach3_mobile_raw_wide.rviz >/tmp/raw_rviz.log 2>&1'; sleep 7
+          docker exec -d a3_raw bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t ${{ matrix.capture_seconds }} -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p /workspace/'"$ROOT"'/raw_lidar/01_mobile_raw_rviz.mp4 >/tmp/raw_video.log 2>&1'; sleep 1
+          docker exec a3_raw bash -lc 'source /opt/ros/humble/setup.bash; ros2 bag play /workspace/${{ matrix.bag_dir }} --storage mcap --rate 4.0 --topics /unilidar/cloud'
+          sleep 2; docker exec a3_raw bash -lc 'pkill -INT -x ffmpeg || true; sleep 2'
+          docker exec -d a3_raw bash -lc 'source /opt/ros/humble/setup.bash; timeout 4 ros2 bag play /workspace/${{ matrix.bag_dir }} --storage mcap --topics /unilidar/cloud || true'; sleep 2
+          docker exec a3_raw bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$ROOT"'/raw_lidar/02_raw_instantaneous_fitted.png >/tmp/raw_shot.log 2>&1'
           docker rm -f a3_raw
 
-      - name: Capture recorded odometry trajectory in RViz
+      - name: Capture recorded robot odometry trajectory
         shell: bash
         run: |
           set -euxo pipefail
           ROOT="results/approach_3/${{ matrix.run_name }}"
           docker run -d --rm --name a3_odom --network host -v "$PWD:/workspace" unitree-l1-evidence sleep infinity
           docker exec -d a3_odom bash -lc 'Xvfb :99 -screen 0 1600x900x24 -ac >/tmp/xvfb.log 2>&1'; sleep 3
-          docker exec -d a3_odom bash -lc \
-            'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/config/rviz/approach3_odometry_path_wide.rviz >/tmp/odom_rviz.log 2>&1'
-          sleep 6
-          docker exec -d a3_odom bash -lc \
-            'source /opt/ros/humble/setup.bash; python3 /workspace/tools/approach_3/publish_odometry_path.py --csv /workspace/'"$ROOT"'/odometry/odometry_trajectory.csv --hold 12'
-          sleep 5
-          docker exec a3_odom bash -lc \
-            'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$ROOT"'/odometry/01_recorded_trajectory_wide.png >/tmp/odom_shot.log 2>&1'
+          docker exec -d a3_odom bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$ROOT"'/odometry/odometry_path_fitted.rviz >/tmp/odom_rviz.log 2>&1'; sleep 6
+          docker exec -d a3_odom bash -lc 'source /opt/ros/humble/setup.bash; python3 /workspace/tools/approach_3/publish_odometry_path.py --csv /workspace/'"$ROOT"'/odometry/odometry_trajectory.csv --hold 15'; sleep 5
+          docker exec a3_odom bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$ROOT"'/odometry/01_recorded_trajectory_fitted.png >/tmp/odom_shot.log 2>&1'
           docker rm -f a3_odom
 
-      - name: Build odometry-frame OctoMap only when recorded TF chain is complete
+      - name: Build pinned KISS-ICP v1.3.0 image
+        run: docker build --build-arg BASE_IMAGE=unitree-l1-evidence -t unitree-l1-kiss -f docker/Dockerfile.kiss_icp .
+
+      - name: Run KISS-ICP over complete LiDAR stream
         shell: bash
         run: |
           set -euxo pipefail
           ROOT="results/approach_3/${{ matrix.run_name }}"
-          HAS=$(python3 -c "import json; print('1' if json.load(open('$ROOT/odometry/tf_audit.json'))['full_recorded_tf_chain_available'] else '0')")
-          if [ "$HAS" != 1 ]; then
-            cat > "$ROOT/odometry_baseline/BLOCKED_MISSING_RECORDED_TF.md" <<'EOF'
-          # Odometry + LiDAR metric fusion not generated
+          cp config/rviz/approach3_kiss_icp_wide.rviz /tmp/kiss_view.rviz
+          sed -i 's/Distance: 65/Distance: ${{ matrix.camera_distance }}/' /tmp/kiss_view.rviz
+          cp /tmp/kiss_view.rviz "$ROOT/kiss_icp/kiss_icp_fitted.rviz"
+          chmod -R a+rwX "$ROOT"
+          docker run -d --rm --name a3_kiss --network host -v "$PWD:/workspace" unitree-l1-kiss sleep infinity
+          docker exec -d a3_kiss bash -lc 'Xvfb :99 -screen 0 1600x900x24 -ac >/tmp/xvfb.log 2>&1'; sleep 3
+          docker exec -d a3_kiss bash -lc 'source /opt/ros/humble/setup.bash; source /opt/kiss_ws/install/setup.bash; ros2 launch kiss_icp odometry.launch.py topic:=/unilidar/cloud visualize:=false base_frame:=unilidar_lidar publish_odom_tf:=true >/tmp/kiss.log 2>&1'; sleep 8
+          docker exec -d a3_kiss bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; source /opt/kiss_ws/install/setup.bash; rviz2 -d /workspace/'"$ROOT"'/kiss_icp/kiss_icp_fitted.rviz >/tmp/kiss_rviz.log 2>&1'
+          docker exec -d a3_kiss bash -lc 'source /opt/ros/humble/setup.bash; python3 /workspace/tools/approach_3/record_odometry_csv.py --topic /kiss/odometry --out /workspace/'"$ROOT"'/kiss_icp/trajectory.csv --timeout 900 >/tmp/kiss_csv.log 2>&1'; sleep 5
+          docker exec -d a3_kiss bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t ${{ matrix.capture_seconds }} -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p /workspace/'"$ROOT"'/kiss_icp/01_kiss_icp_rviz.mp4 >/tmp/kiss_video.log 2>&1'
+          docker exec a3_kiss bash -lc 'source /opt/ros/humble/setup.bash; source /opt/kiss_ws/install/setup.bash; ros2 bag play /workspace/${{ matrix.bag_dir }} --storage mcap --rate 4.0 --topics /unilidar/cloud'
+          sleep 7; docker exec a3_kiss bash -lc 'pkill -INT -x ffmpeg || true; sleep 2'
+          docker exec a3_kiss bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$ROOT"'/kiss_icp/02_final_fitted_isometric.png >/tmp/kiss_shot.log 2>&1'
+          docker exec a3_kiss bash -lc 'tail -80 /tmp/kiss.log || true; cat /tmp/kiss_csv.log || true'
+          docker rm -f a3_kiss
 
-          The recorded TF graph does not provide a complete `odom -> ... -> unilidar_lidar` transform chain. The project confirms the LiDAR translation but does not explicitly establish the missing rotation. A metric fused cloud or OctoMap would therefore require inventing an extrinsic rotation, which this pipeline deliberately refuses to do. See `../odometry/tf_audit.json` for the recorded evidence.
+      - name: Estimate zero-translation LiDAR/base rotation from trajectory agreement
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ROOT="results/approach_3/${{ matrix.run_name }}"
+          python3 tools/approach_3/calibrate_zero_translation_extrinsic.py \
+            --odom "$ROOT/odometry/odometry_trajectory.csv" \
+            --kiss "$ROOT/kiss_icp/trajectory.csv" \
+            --out "$ROOT/calibration"
+          cat "$ROOT/calibration/extrinsic_rotation_estimate.json"
+
+      - name: Build odometry + LiDAR fused OctoMap when calibration is accepted
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ROOT="results/approach_3/${{ matrix.run_name }}"
+          OUT="$ROOT/odometry_lidar_fusion"
+          OK=$(python3 -c "import json; print('1' if json.load(open('$ROOT/calibration/extrinsic_rotation_estimate.json'))['canonical_fusion_allowed'] else '0')")
+          if [ "$OK" != 1 ]; then
+            cat > "$OUT/BLOCKED_CALIBRATION_NOT_ACCEPTED.md" <<'EOF'
+          # Canonical odometry + LiDAR fusion blocked
+
+          Translation `base_link -> unilidar_lidar` is fixed to `(0,0,0)`. The missing rotation was estimated from recorded robot odometry versus KISS-ICP relative motions, but the quantitative acceptance gate did not pass. See `../calibration/extrinsic_rotation_estimate.json`. Possible resolutions are: obtain/measure the true extrinsic rotation, explicitly confirm that LiDAR and `base_link` axes are aligned, or collect a calibration trajectory with stronger translation and rotation excitation.
           EOF
             exit 0
           fi
-          docker run -d --rm --name a3_map --network host -v "$PWD:/workspace" unitree-l1-evidence sleep infinity
-          docker exec -d a3_map bash -lc 'Xvfb :99 -screen 0 1600x900x24 -ac >/tmp/xvfb.log 2>&1'; sleep 3
-          docker exec -d a3_map bash -lc \
-            'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_server_node --ros-args -p frame_id:=odom -p resolution:=0.10 -p sensor_model.max_range:=15.0 -p filter_ground_plane:=false -r cloud_in:=/unilidar/cloud >/tmp/mobile_octomap.log 2>&1'
-          sleep 4
-          docker exec -d a3_map bash -lc \
-            'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/config/rviz/approach3_octomap_odom_wide.rviz >/tmp/mobile_map_rviz.log 2>&1'
-          sleep 7
-          docker exec -d a3_map bash -lc \
-            'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t ${{ matrix.raw_video_seconds }} -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p /workspace/'"$ROOT"'/odometry_baseline/01_build_rviz.mp4 >/tmp/mobile_map_video.log 2>&1'
-          docker exec a3_map bash -lc \
-            'source /opt/ros/humble/setup.bash; ros2 bag play /workspace/${{ matrix.bag_dir }} --storage mcap --rate 4.0 --topics /tf /tf_static /unilidar/cloud'
-          sleep 4
-          docker exec a3_map bash -lc 'pkill -INT -x ffmpeg || true; sleep 2'
-          docker exec a3_map bash -lc \
-            'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_saver_node --ros-args -p octomap_path:=/workspace/'"$ROOT"'/odometry_baseline/map.bt'
-          docker exec a3_map bash -lc \
-            'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_saver_node --ros-args -p full:=true -p octomap_path:=/workspace/'"$ROOT"'/odometry_baseline/map.ot'
-          docker exec a3_map bash -lc \
-            'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$ROOT"'/odometry_baseline/02_final_wide_isometric.png >/tmp/mobile_map_shot.log 2>&1'
-          cp config/rviz/approach3_octomap_odom_wide.rviz "$ROOT/odometry_baseline/octomap_odom_wide.rviz"
-          docker rm -f a3_map
+          cp config/rviz/approach3_fused_octomap_isometric.rviz /tmp/fused_iso.rviz
+          cp config/rviz/approach3_fused_octomap_top.rviz /tmp/fused_top.rviz
+          cp config/rviz/approach3_fused_octomap_side.rviz /tmp/fused_side.rviz
+          sed -i 's/Distance: 65/Distance: ${{ matrix.camera_distance }}/' /tmp/fused_iso.rviz /tmp/fused_top.rviz /tmp/fused_side.rviz
+          cp /tmp/fused_iso.rviz "$OUT/octomap_isometric.rviz"; cp /tmp/fused_top.rviz "$OUT/octomap_top.rviz"; cp /tmp/fused_side.rviz "$OUT/octomap_side.rviz"
+          chmod -R a+rwX "$ROOT"
+          docker run -d --rm --name a3_fused --network host -v "$PWD:/workspace" unitree-l1-evidence sleep infinity
+          docker exec -d a3_fused bash -lc 'Xvfb :99 -screen 0 1600x900x24 -ac >/tmp/xvfb.log 2>&1'; sleep 3
+          docker exec -d a3_fused bash -lc 'source /opt/ros/humble/setup.bash; python3 /workspace/tools/approach_3/fuse_cloud_with_odom.py --odom /workspace/'"$ROOT"'/odometry/odometry_trajectory.csv --extrinsic /workspace/'"$ROOT"'/calibration/extrinsic_rotation_estimate.json >/tmp/fusion.log 2>&1'; sleep 2
+          docker exec -d a3_fused bash -lc 'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_server_node --ros-args -p frame_id:=odom -p resolution:=0.10 -p sensor_model.max_range:=15.0 -p filter_ground_plane:=false -r cloud_in:=/fused_cloud >/tmp/octomap.log 2>&1'; sleep 4
+          docker exec -d a3_fused bash -lc 'source /opt/ros/humble/setup.bash; python3 /workspace/tools/approach_3/publish_odometry_path.py --csv /workspace/'"$ROOT"'/odometry/odometry_trajectory.csv --hold 400 >/tmp/path.log 2>&1'; sleep 2
+          docker exec -d a3_fused bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_isometric.rviz >/tmp/fused_rviz.log 2>&1'; sleep 7
+          docker exec -d a3_fused bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t ${{ matrix.capture_seconds }} -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p /workspace/'"$OUT"'/01_build_rviz.mp4 >/tmp/fused_video.log 2>&1'; sleep 1
+          docker exec a3_fused bash -lc 'source /opt/ros/humble/setup.bash; ros2 bag play /workspace/${{ matrix.bag_dir }} --storage mcap --rate 4.0 --topics /unilidar/cloud'
+          sleep 5; docker exec a3_fused bash -lc 'pkill -INT -x ffmpeg || true; sleep 2'
+          docker exec a3_fused bash -lc 'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_saver_node --ros-args -p octomap_path:=/workspace/'"$OUT"'/map.bt'
+          docker exec a3_fused bash -lc 'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_saver_node --ros-args -p full:=true -p octomap_path:=/workspace/'"$OUT"'/map.ot'
+          docker exec a3_fused bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$OUT"'/02_final_isometric.png >/dev/null 2>&1'
+          docker exec a3_fused bash -lc 'pkill -x rviz2 || true'; sleep 2
+          docker exec -d a3_fused bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_top.rviz >/tmp/top.log 2>&1'; sleep 6
+          docker exec a3_fused bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$OUT"'/03_final_top.png >/dev/null 2>&1'
+          docker exec a3_fused bash -lc 'pkill -x rviz2 || true'; sleep 2
+          docker exec -d a3_fused bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_side.rviz >/tmp/side.log 2>&1'; sleep 6
+          docker exec a3_fused bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$OUT"'/04_final_side.png >/dev/null 2>&1'
+          docker exec a3_fused bash -lc 'pkill -x rviz2 || true'; sleep 2
+          docker exec -d a3_fused bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_isometric.rviz >/tmp/orbit.log 2>&1'; sleep 6
+          docker exec -d a3_fused bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t 12 -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p /workspace/'"$OUT"'/05_3d_orbit_rviz.mp4 >/tmp/orbitvideo.log 2>&1'; sleep 1
+          docker exec a3_fused bash -lc 'export DISPLAY=:99; WIN=$(xdotool search --onlyvisible --name RViz | head -1 || true); if [ -n "$WIN" ]; then xdotool windowactivate --sync "$WIN"; for j in $(seq 1 24); do xdotool mousemove --window "$WIN" 800 450 mousedown 1 mousemove_relative --sync 22 0 mouseup 1; sleep 0.35; done; fi'; sleep 3
+          docker exec a3_fused bash -lc 'cat /tmp/fusion.log | tail -30 || true; cat /tmp/octomap.log | tail -40 || true'
+          docker rm -f a3_fused
 
-      - name: Build pinned KISS-ICP v1.3.0 ROS 2 image
-        shell: bash
-        run: |
-          set -euxo pipefail
-          docker build --build-arg BASE_IMAGE=unitree-l1-evidence -t unitree-l1-kiss -f docker/Dockerfile.kiss_icp .
-
-      - name: Run KISS-ICP over the complete mobile LiDAR stream and capture RViz
-        shell: bash
-        run: |
-          set -euxo pipefail
-          ROOT="results/approach_3/${{ matrix.run_name }}"
-          cp config/rviz/approach3_kiss_icp_wide.rviz "$ROOT/kiss_icp/kiss_icp_wide.rviz"
-          docker run -d --rm --name a3_kiss --network host -v "$PWD:/workspace" unitree-l1-kiss sleep infinity
-          docker exec -d a3_kiss bash -lc 'Xvfb :99 -screen 0 1600x900x24 -ac >/tmp/xvfb.log 2>&1'; sleep 3
-          docker exec -d a3_kiss bash -lc \
-            'source /opt/ros/humble/setup.bash; source /opt/kiss_ws/install/setup.bash; ros2 launch kiss_icp odometry.launch.py topic:=/unilidar/cloud visualize:=false base_frame:=unilidar_lidar publish_odom_tf:=true >/tmp/kiss.log 2>&1'
-          sleep 8
-          docker exec -d a3_kiss bash -lc \
-            'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; source /opt/kiss_ws/install/setup.bash; rviz2 -d /workspace/config/rviz/approach3_kiss_icp_wide.rviz >/tmp/kiss_rviz.log 2>&1'
-          docker exec -d a3_kiss bash -lc \
-            'source /opt/ros/humble/setup.bash; python3 /workspace/tools/approach_3/record_odometry_csv.py --topic /kiss/odometry --out /workspace/'"$ROOT"'/kiss_icp/trajectory.csv --timeout 900 >/tmp/kiss_csv.log 2>&1'
-          sleep 5
-          docker exec -d a3_kiss bash -lc \
-            'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t ${{ matrix.raw_video_seconds }} -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p /workspace/'"$ROOT"'/kiss_icp/01_kiss_icp_rviz.mp4 >/tmp/kiss_video.log 2>&1'
-          docker exec a3_kiss bash -lc \
-            'source /opt/ros/humble/setup.bash; source /opt/kiss_ws/install/setup.bash; ros2 bag play /workspace/${{ matrix.bag_dir }} --storage mcap --rate 4.0 --topics /unilidar/cloud'
-          sleep 7
-          docker exec a3_kiss bash -lc 'pkill -INT -x ffmpeg || true; sleep 2'
-          docker exec a3_kiss bash -lc \
-            'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$ROOT"'/kiss_icp/02_final_wide_isometric.png >/tmp/kiss_shot.log 2>&1'
-          docker exec a3_kiss bash -lc 'cat /tmp/kiss.log | tail -80 || true; cat /tmp/kiss_csv.log || true'
-          docker rm -f a3_kiss
-
-      - name: Document LOAM-like method status without fabricating unsupported output
+      - name: Record LOAM-like compatibility status
         shell: bash
         run: |
           ROOT="results/approach_3/${{ matrix.run_name }}"
           cat > "$ROOT/loam_like/METHOD_STATUS.md" <<'EOF'
           # LOAM-like comparison status
 
-          No LOAM-like map is labelled as completed in this dataset unless a ROS 2 implementation is validated against the Unitree L1 PointCloud2 schema and timing fields. The repository contains IMU and LiDAR data, but compatibility and the required calibration must be demonstrated before publishing a canonical map. This folder is intentionally explicit rather than presenting an unvalidated result as evidence.
+          A LOAM-family LiDAR/IMU map is not labelled canonical here because the Unitree L1 stream includes LiDAR and IMU data but the IMU-to-LiDAR rotational extrinsic has not been independently established. Translation is known to be zero; that alone is insufficient for an IMU deskew / LiDAR-inertial estimator. Running FAST-LIO, LIO-SAM or another LOAM-like implementation with an invented rotation would create misleading evidence.
 
-          KISS-ICP is executed as the validated generic PointCloud2 LiDAR-odometry comparison. The recorded robot odometry is preserved independently for comparison.
+          Current validated mobile methods are: recorded robot odometry (independent trajectory), KISS-ICP v1.3.0 (LiDAR-only odometry/local map), and odometry+LiDAR OctoMap only when the trajectory-derived zero-translation rotation calibration passes its acceptance gate.
+
+          Resolution paths: provide the real IMU/LiDAR rotational calibration; explicitly confirm aligned axes if that is physically true; or perform a dedicated rotational calibration dataset before enabling a LOAM-like canonical output.
           EOF
 
       - name: Validate and document Approach 3 run
@@ -197,18 +205,21 @@ jobs:
           set -euxo pipefail
           ROOT="results/approach_3/${{ matrix.run_name }}"
           test -s "$ROOT/raw_lidar/01_mobile_raw_rviz.mp4"
-          test -s "$ROOT/raw_lidar/02_raw_instantaneous_wide.png"
-          test -s "$ROOT/odometry/tf_audit.json"
-          test -s "$ROOT/odometry/odometry_trajectory.csv"
-          test -s "$ROOT/odometry/01_recorded_trajectory_wide.png"
-          test -s "$ROOT/kiss_icp/01_kiss_icp_rviz.mp4"
-          test -s "$ROOT/kiss_icp/02_final_wide_isometric.png"
-          test -s "$ROOT/kiss_icp/trajectory.csv"
-          if [ ! -s "$ROOT/odometry_baseline/map.bt" ]; then test -s "$ROOT/odometry_baseline/BLOCKED_MISSING_RECORDED_TF.md"; fi
+          test -s "$ROOT/raw_lidar/02_raw_instantaneous_fitted.png"
+          test -s "$ROOT/odometry/tf_audit.json"; test -s "$ROOT/odometry/odometry_trajectory.csv"; test -s "$ROOT/odometry/01_recorded_trajectory_fitted.png"
+          test -s "$ROOT/kiss_icp/01_kiss_icp_rviz.mp4"; test -s "$ROOT/kiss_icp/02_final_fitted_isometric.png"; test -s "$ROOT/kiss_icp/trajectory.csv"
+          test -s "$ROOT/calibration/extrinsic_rotation_estimate.json"
+          OK=$(python3 -c "import json; print('1' if json.load(open('$ROOT/calibration/extrinsic_rotation_estimate.json'))['canonical_fusion_allowed'] else '0')")
+          if [ "$OK" = 1 ]; then
+            for F in 01_build_rviz.mp4 02_final_isometric.png 03_final_top.png 04_final_side.png 05_3d_orbit_rviz.mp4 map.bt map.ot; do test -s "$ROOT/odometry_lidar_fusion/$F"; done
+          else
+            test -s "$ROOT/odometry_lidar_fusion/BLOCKED_CALIBRATION_NOT_ACCEPTED.md"
+          fi
+          test -s "$ROOT/loam_like/METHOD_STATUS.md"
           cat > "$ROOT/README.md" <<'EOF'
-          # Approach 3 — mobile LiDAR + odometry
+          # Approach 3 — mobile LiDAR + robot odometry
 
-          `raw_lidar/` is the unregistered mobile sensor evidence (short decay prevents a false pose-free map). `odometry/` contains the measured robot trajectory and a TF audit. `odometry_baseline/` contains a metric odom-frame OctoMap only when the recorded TF graph reaches the LiDAR frame; otherwise it contains an explicit calibration blocker. `kiss_icp/` contains an independent generic LiDAR-odometry result generated with KISS-ICP v1.3.0 using the LiDAR frame as its base frame. `loam_like/` records validation status rather than fabricating unsupported output.
+          `raw_lidar/` retains canonical raw mobile RViz evidence. `odometry/` retains the recorded robot trajectory and TF audit. `kiss_icp/` is the independent LiDAR-only KISS-ICP v1.3.0 result. `calibration/` fixes LiDAR↔robot translation to exactly zero and estimates only the missing rotation from relative-motion agreement; the JSON contains the residuals and acceptance decision. `odometry_lidar_fusion/` contains the fused 0.10 m / 15 m OctoMap, native maps and RViz views only when that calibration is quantitatively accepted; otherwise it contains an explicit blocker. `loam_like/` records why a LiDAR-inertial/LOAM-family result is or is not supportable without inventing an IMU/LiDAR rotation.
           EOF
 
       - name: Commit Approach 3 outputs
@@ -219,13 +230,13 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git lfs install
-          git add .gitattributes results/approach_3 mapping_data/03_approach_3_mobile_lidar_odometry tools/approach_3 config/rviz/approach3_* docker/Dockerfile.kiss_icp .github/workflows/approach3_mobile_mapping_evidence.yml
-          git diff --cached --quiet || git commit -m "Add complete Approach 3 evidence for ${{ matrix.run_name }}"
+          git add .gitattributes results/approach_3 mapping_data/03_approach_3_mobile_lidar_odometry config/approach_3 tools/approach_3 config/rviz/approach3_* docker/Dockerfile.kiss_icp .github/workflows/approach3_mobile_mapping_evidence.yml
+          git diff --cached --quiet || git commit -m "Complete Approach 3 mobile evidence for ${{ matrix.run_name }}"
           git pull --rebase origin analysis/approach-1-static
           git push origin HEAD:analysis/approach-1-static
 
       - uses: actions/upload-artifact@v4
         with:
-          name: approach3-${{ matrix.run_name }}
+          name: approach3-complete-${{ matrix.run_name }}
           path: results/approach_3/${{ matrix.run_name }}/
           if-no-files-found: error
