@@ -1,0 +1,31 @@
+name: Monitor validated NAS ingestion v2
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  monitor:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Monitor latest v2 ingestion run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sleep 12
+          RUN_ID=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow nas_ingest_v2.yml --branch automation/nas-ingest --event push --limit 1 --json databaseId --jq '.[0].databaseId')
+          test -n "$RUN_ID"
+          echo "Monitoring v2 ingestion run $RUN_ID"
+          if ! gh run watch "$RUN_ID" --repo "$GITHUB_REPOSITORY" --exit-status --interval 10; then
+            echo '--- FAILED LOGS ---'
+            gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed || true
+            exit 1
+          fi
+          echo '--- FINAL RUN ---'
+          gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY"
