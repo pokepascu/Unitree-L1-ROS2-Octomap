@@ -1,0 +1,20 @@
+approach: approach_2_three_static_icp
+environment: HcMR_lab
+scan: scan_03
+source: HcMR_lab
+start: 1786133755547356928
+end: 1786133762945741568
+pose:
+- 11.806
+- -0.188
+- 0.0
+note: Strict stationary interval; short but spatially close enough to favour cloud
+  overlap for ICP.
+duration_s: 7.39838464
+message_count: 1873
+topic_counts:
+  /cmd_vel: 9
+  /odom: 149
+  /tf: 148
+  /unilidar/cloud: 57
+  /unilidar/imu: 1510

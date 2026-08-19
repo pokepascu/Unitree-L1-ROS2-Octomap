@@ -1,0 +1,19 @@
+approach: approach_2_three_static_icp
+environment: HcMR_lab
+scan: scan_01
+source: HcMR_lab
+start: 1786133698660790784
+end: 1786133712355343616
+pose:
+- 7.072
+- -1.158
+- 0.0
+note: Strict stationary interval.
+duration_s: 13.694552832
+message_count: 3444
+topic_counts:
+  /cmd_vel: 6
+  /odom: 274
+  /tf: 274
+  /unilidar/cloud: 105
+  /unilidar/imu: 2785
