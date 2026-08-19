@@ -1,0 +1,17 @@
+name: Cancel superseded OctoMap run
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/cancel_legacy_octomap_run.yml'
+
+concurrency:
+  group: approach1-octomap-rviz-v2
+  cancel-in-progress: true
+
+jobs:
+  cancel-superseded-run:
+    runs-on: ubuntu-22.04
+    steps:
+      - run: echo 'Superseded OctoMap v2 background run cancelled; observable pipelines may proceed.'
