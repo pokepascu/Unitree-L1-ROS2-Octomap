@@ -6,17 +6,23 @@ on:
     branches: [analysis/approach-1-static]
     paths:
       - 'config/rviz/**'
+      - 'docker/Dockerfile'
       - '.github/workflows/approach1_rviz_capture.yml'
       - 'results/approach_1/rviz_evidence/README.md'
 
 permissions:
   contents: write
 
+concurrency:
+  group: approach1-rviz-evidence
+  cancel-in-progress: false
+
 jobs:
   rviz-pointcloud-evidence:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     strategy:
+      max-parallel: 1
       matrix:
         include:
           - env_name: HcMR_lab
@@ -57,6 +63,7 @@ jobs:
             --network host \
             -e DISPLAY=:99 \
             -e QT_X11_NO_MITSHM=1 \
+            -e LIBGL_ALWAYS_SOFTWARE=1 \
             -v /tmp/.X11-unix:/tmp/.X11-unix \
             -v "$PWD:/workspace" \
             unitree-l1-rviz sleep infinity
@@ -66,7 +73,8 @@ jobs:
         run: |
           docker exec -d rviz_capture bash -lc \
             'source /opt/ros/humble/setup.bash && source /opt/unitree_ws/install/setup.bash && rviz2 -d /workspace/config/rviz/approach1_pointcloud_accumulation.rviz > /tmp/rviz.log 2>&1'
-          sleep 8
+          sleep 10
+          docker exec rviz_capture bash -lc 'pgrep -a rviz2 && ros2 pkg prefix rosbag2_storage_mcap'
 
       - name: Record RViz while PointCloud2 accumulates
         shell: bash
@@ -83,14 +91,15 @@ jobs:
           sleep 1
 
           docker exec rviz_capture bash -lc \
-            'source /opt/ros/humble/setup.bash && source /opt/unitree_ws/install/setup.bash && ros2 bag play /workspace/${{ matrix.bag }} --topics /unilidar/cloud /odom'
+            'source /opt/ros/humble/setup.bash && source /opt/unitree_ws/install/setup.bash && ros2 bag play /workspace/${{ matrix.bag }} --storage mcap --topics /unilidar/cloud /odom'
 
           wait "$FFMPEG_PID" || true
           sleep 3
 
-          # Final accumulated isometric reference view. The canonical .rviz file fixes this camera.
           ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 \
             "$OUT/02_final_accumulated_isometric.png" > /tmp/ffmpeg-shot.log 2>&1
+          test -s "$OUT/01_accumulation_rviz.mp4"
+          test -s "$OUT/02_final_accumulated_isometric.png"
 
       - name: Commit RViz evidence
         shell: bash
@@ -99,7 +108,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git lfs install
-          git add .gitattributes config/rviz results/approach_1/rviz_evidence .github/workflows/approach1_rviz_capture.yml
+          git add .gitattributes config/rviz results/approach_1/rviz_evidence .github/workflows/approach1_rviz_capture.yml docker/Dockerfile
           git diff --cached --quiet || git commit -m "Add RViz PointCloud2 evidence for ${{ matrix.env_name }}"
           git pull --rebase origin analysis/approach-1-static
           git push origin HEAD:analysis/approach-1-static
