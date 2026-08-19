@@ -1,0 +1,39 @@
+name: MCAP summary diagnostic from NAS
+
+on:
+  push:
+    branches: [automation/nas-ingest]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: automation/nas-ingest
+          fetch-depth: 1
+      - name: Install parser dependencies
+        run: python3 -m pip install mcap pyyaml zstandard lz4 requests
+      - name: Download the three bags from Synology NAS
+        run: |
+          set -euxo pipefail
+          python3 tools/automation/download_synology_public_folder.py --out-dir /tmp/nas_download
+      - name: Run low-level diagnostic
+        run: |
+          set -euxo pipefail
+          python3 tools/diagnostics/mcap_summary_diagnose.py --out-dir /tmp/mcap_diagnostic \
+            /tmp/nas_download/rosbag2_2026_08_07-21_13_45/rosbag2_2026_08_07-21_13_45_0.mcap \
+            /tmp/nas_download/rosbag2_2026_08_07-21_31_58/rosbag2_2026_08_07-21_31_58_0.mcap \
+            /tmp/nas_download/rosbag2_2026_08_07-21_48_31/rosbag2_2026_08_07-21_48_31_0.mcap
+          echo '--- REPORT ---'
+          cat /tmp/mcap_diagnostic/report.md
+      - name: Upload diagnostic artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcap-summary-diagnostic-nas
+          path: /tmp/mcap_diagnostic/
