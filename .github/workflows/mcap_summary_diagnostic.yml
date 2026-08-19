@@ -1,0 +1,51 @@
+name: MCAP summary diagnostic
+
+on:
+  push:
+    branches: [automation/nas-ingest]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout current main with LFS data
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+          lfs: true
+
+      - name: Retrieve diagnostic script from temporary branch
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git fetch origin automation/nas-ingest:refs/remotes/origin/automation/nas-ingest
+          git show origin/automation/nas-ingest:tools/diagnostics/mcap_summary_diagnose.py > /tmp/mcap_summary_diagnose.py
+          chmod +x /tmp/mcap_summary_diagnose.py
+
+      - name: Install MCAP parser
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 -m pip install mcap pyyaml zstandard lz4
+
+      - name: Diagnose all three raw MCAP files
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 /tmp/mcap_summary_diagnose.py --out-dir /tmp/mcap_diagnostic \
+            bags/raw/HcMR_lab_2026-08-07_21-13-45/rosbag2_2026_08_07-21_13_45_0.mcap \
+            bags/raw/ISR_5th_floor_run_1_2026-08-07_21-31-58/rosbag2_2026_08_07-21_31_58_0.mcap \
+            bags/raw/ISR_5th_floor_run_2_2026-08-07_21-48-31/rosbag2_2026_08_07-21_48_31_0.mcap
+
+      - name: Upload diagnostic report
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcap-summary-diagnostic
+          path: /tmp/mcap_diagnostic/
+          if-no-files-found: error
