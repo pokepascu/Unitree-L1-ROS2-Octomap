@@ -22,6 +22,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # recorded MCAP datasets in RViz2/OctoMap.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       libgl1-mesa-dri \
+      python3-numpy \
       ros-humble-octomap-server \
       ros-humble-rosbag2-storage-mcap \
       ros-humble-rviz2 \
@@ -57,6 +58,7 @@ RUN source /opt/ros/humble/setup.bash \
     && ros2 pkg prefix l1_bringup \
     && ros2 pkg prefix l1_octomap_bringup \
     && ros2 pkg prefix rosbag2_storage_mcap \
+    && python3 -c 'import numpy' \
     && ros2 pkg executables octomap_server | grep -F \
       "octomap_server octomap_server_node" \
     && ros2 launch l1_bringup unitree_l1.launch.py --show-args \
