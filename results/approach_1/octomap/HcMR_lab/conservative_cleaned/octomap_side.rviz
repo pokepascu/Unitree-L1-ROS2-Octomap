@@ -4,19 +4,6 @@ Panels:
 Visualization Manager:
   Class: ""
   Displays:
-    - Alpha: 0.1
-      Cell Size: 2
-      Class: rviz_default_plugins/Grid
-      Color: 100; 100; 100
-      Enabled: false
-      Line Style:
-        Line Width: 0.01
-        Value: Lines
-      Name: Grid
-      Plane: XY
-      Plane Cell Count: 20
-      Reference Frame: <Fixed Frame>
-      Value: false
     - Class: rviz_default_plugins/Axes
       Enabled: true
       Length: 0.6
@@ -29,44 +16,20 @@ Visualization Manager:
       Name: Occupied OctoMap Voxels
       Namespaces: {}
       Queue Size: 100
-      Topic:
-        Depth: 1
-        Durability Policy: Transient Local
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /occupied_cells_vis_array
+      Topic: {Depth: 1, Durability Policy: Transient Local, History Policy: Keep Last, Reliability Policy: Reliable, Value: /occupied_cells_vis_array}
       Value: true
   Enabled: true
-  Global Options:
-    Background Color: 15; 15; 18
-    Fixed Frame: unilidar_lidar
-    Frame Rate: 30
+  Global Options: {Background Color: 15; 15; 18, Fixed Frame: unilidar_lidar, Frame Rate: 30}
   Name: root
-  Tools:
-    - Class: rviz_default_plugins/Interact
-    - Class: rviz_default_plugins/MoveCamera
-    - Class: rviz_default_plugins/Select
-    - Class: rviz_default_plugins/FocusCamera
-  Transformation:
-    Current:
-      Class: rviz_default_plugins/TF
-  Value: true
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 42
-      Focal Point:
-        X: 0
-        Y: 0
-        Z: 0.8
-      Name: Wide side
+      Distance: 26
+      Focal Point: {X: 0, Y: 0, Z: 0.8}
+      Name: Fitted side evidence
       Pitch: 0.08
       Target Frame: unilidar_lidar
       Value: Orbit (rviz_default_plugins)
       Yaw: 0.0
     Saved: ~
-Window Geometry:
-  Height: 900
-  Width: 1600
-  X: 0
-  Y: 0
+Window Geometry: {Height: 900, Width: 1600, X: 0, Y: 0}
