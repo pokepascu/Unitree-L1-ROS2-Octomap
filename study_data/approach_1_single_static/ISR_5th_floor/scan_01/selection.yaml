@@ -1,0 +1,14 @@
+source: ISR_5th_floor_run_1
+start_ns: 1786134757994425600
+end_ns: 1786134787994425600
+score: 0.0
+position_radius_m: 0.0
+path_length_m: 0.0
+yaw_span_rad: 0.0
+linear_speed_p95_mps: 0.0
+angular_speed_p95_radps: 0.0
+median_x_m: 1.8624407721446345
+median_y_m: -1.0702030378810359
+median_z_m: 0.0
+total_messages: 7548
+cloud_messages: 231

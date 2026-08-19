@@ -1,0 +1,14 @@
+source: HcMR_lab
+start_ns: 1786133749491649536
+end_ns: 1786133779491649536
+score: 3.0824151628625276
+position_radius_m: 0.865623363227411
+path_length_m: 1.3726836472113737
+yaw_span_rad: 0.8908490446269665
+linear_speed_p95_mps: 0.2833844801809557
+angular_speed_p95_radps: 0.21596340475805237
+median_x_m: 11.810088423995747
+median_y_m: -0.19568852934850445
+median_z_m: 0.0
+total_messages: 7667
+cloud_messages: 231
