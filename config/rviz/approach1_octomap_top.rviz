@@ -4,24 +4,24 @@ Panels:
 Visualization Manager:
   Class: ""
   Displays:
-    - Alpha: 0.35
-      Cell Size: 1
+    - Alpha: 0.1
+      Cell Size: 2
       Class: rviz_default_plugins/Grid
-      Color: 120; 120; 120
-      Enabled: true
+      Color: 100; 100; 100
+      Enabled: false
       Line Style:
-        Line Width: 0.02
+        Line Width: 0.01
         Value: Lines
       Name: Grid
       Plane: XY
-      Plane Cell Count: 30
+      Plane Cell Count: 20
       Reference Frame: <Fixed Frame>
-      Value: true
+      Value: false
     - Class: rviz_default_plugins/Axes
       Enabled: true
-      Length: 1
+      Length: 0.6
       Name: LiDAR axes
-      Radius: 0.05
+      Radius: 0.025
       Reference Frame: unilidar_lidar
       Value: true
     - Class: rviz_default_plugins/MarkerArray
@@ -38,7 +38,7 @@ Visualization Manager:
       Value: true
   Enabled: true
   Global Options:
-    Background Color: 28; 28; 32
+    Background Color: 15; 15; 18
     Fixed Frame: unilidar_lidar
     Frame Rate: 30
   Name: root
@@ -54,13 +54,13 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 16
+      Distance: 42
       Focal Point:
         X: 0
         Y: 0
         Z: 0
-      Name: Top
-      Pitch: 1.54
+      Name: Wide top
+      Pitch: 1.55
       Target Frame: unilidar_lidar
       Value: Orbit (rviz_default_plugins)
       Yaw: 0.0
