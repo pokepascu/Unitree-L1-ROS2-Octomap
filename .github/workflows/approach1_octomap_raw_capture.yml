@@ -1,0 +1,214 @@
+name: Approach 1 raw OctoMap RViz capture
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/approach1_octomap_raw_capture.yml'
+      - 'docker/Dockerfile'
+      - 'config/rviz/approach1_octomap_*.rviz'
+      - 'ros2_ws/src/l1_octomap_bringup/config/octomap.yaml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: approach1-octomap-raw-pr
+  cancel-in-progress: true
+
+jobs:
+  capture-raw-octomap:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    strategy:
+      max-parallel: 1
+      matrix:
+        include:
+          - env_name: HcMR_lab
+            bag_dir: study_data/approach_1_single_static/HcMR_lab/scan_01
+            record_seconds: 20
+          - env_name: ISR_5th_floor
+            bag_dir: study_data/approach_1_single_static/ISR_5th_floor/scan_01
+            record_seconds: 42
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Build reproducible ROS 2 / RViz / OctoMap image
+        shell: bash
+        run: |
+          set -euxo pipefail
+          docker build -t unitree-l1-evidence -f docker/Dockerfile .
+
+      - name: Prepare writable output directory
+        shell: bash
+        run: |
+          set -euxo pipefail
+          OUT="results/approach_1/octomap/${{ matrix.env_name }}/raw_pointcloud"
+          mkdir -p "$OUT"
+          chmod -R a+rwX results/approach_1/octomap
+          cp config/rviz/approach1_octomap_isometric.rviz "$OUT/octomap_isometric.rviz"
+          cp config/rviz/approach1_octomap_top.rviz "$OUT/octomap_top.rviz"
+          cp config/rviz/approach1_octomap_side.rviz "$OUT/octomap_side.rviz"
+          cat > "$OUT/parameters.yaml" <<'EOF'
+          source: original_verified_static_PointCloud2
+          frame_id: unilidar_lidar
+          resolution_m: 0.10
+          sensor_model_max_range_m: 15.0
+          filter_ground_plane: false
+          EOF
+
+      - name: Start headless ROS 2 evidence container
+        shell: bash
+        run: |
+          set -euxo pipefail
+          docker run -d --rm \
+            --name octomap_capture \
+            --network host \
+            -v "$PWD:/workspace" \
+            unitree-l1-evidence sleep infinity
+          docker exec -d octomap_capture bash -lc 'Xvfb :99 -screen 0 1600x900x24 -ac >/tmp/xvfb.log 2>&1'
+          sleep 3
+          docker exec octomap_capture bash -lc 'pgrep -a Xvfb && ffmpeg -version | head -1 && ros2 pkg prefix rosbag2_storage_mcap'
+
+      - name: Start OctoMap server and RViz isometric view
+        shell: bash
+        run: |
+          set -euxo pipefail
+          docker exec -d octomap_capture bash -lc \
+            'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_server_node --ros-args --params-file /workspace/ros2_ws/src/l1_octomap_bringup/config/octomap.yaml -r cloud_in:=/unilidar/cloud >/tmp/octomap.log 2>&1'
+          sleep 4
+          docker exec -d octomap_capture bash -lc \
+            'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/config/rviz/approach1_octomap_isometric.rviz >/tmp/rviz.log 2>&1'
+          sleep 8
+          docker exec octomap_capture bash -lc 'pgrep -a octomap_server_node; pgrep -a rviz2'
+
+      - name: Record real RViz map construction while replaying PointCloud2
+        shell: bash
+        run: |
+          set -euxo pipefail
+          OUT="/workspace/results/approach_1/octomap/${{ matrix.env_name }}/raw_pointcloud"
+          docker exec -d octomap_capture bash -lc \
+            'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t ${{ matrix.record_seconds }} -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p '"$OUT"'/01_octomap_build_rviz.mp4 >/tmp/octomap_build_ffmpeg.log 2>&1'
+          sleep 1
+          docker exec octomap_capture bash -lc \
+            'source /opt/ros/humble/setup.bash; ros2 bag play /workspace/${{ matrix.bag_dir }} --storage mcap --topics /unilidar/cloud'
+          sleep 5
+          docker exec octomap_capture bash -lc 'while pgrep -x ffmpeg >/dev/null; do sleep 1; done'
+
+      - name: Save native OctoMap files
+        shell: bash
+        run: |
+          set -euxo pipefail
+          OUT="/workspace/results/approach_1/octomap/${{ matrix.env_name }}/raw_pointcloud"
+          docker exec octomap_capture bash -lc \
+            'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_saver_node --ros-args -p octomap_path:='"$OUT"'/map.bt'
+          docker exec octomap_capture bash -lc \
+            'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_saver_node --ros-args -p full:=true -p octomap_path:='"$OUT"'/map.ot'
+
+      - name: Capture final RViz views
+        shell: bash
+        run: |
+          set -euxo pipefail
+          OUT="/workspace/results/approach_1/octomap/${{ matrix.env_name }}/raw_pointcloud"
+
+          docker exec octomap_capture bash -lc \
+            'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 '"$OUT"'/02_final_isometric.png >/tmp/shot_iso.log 2>&1'
+
+          docker exec octomap_capture bash -lc 'pkill -f rviz2 || true'
+          sleep 2
+          docker exec -d octomap_capture bash -lc \
+            'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/config/rviz/approach1_octomap_top.rviz >/tmp/rviz_top.log 2>&1'
+          sleep 6
+          docker exec octomap_capture bash -lc \
+            'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 '"$OUT"'/03_final_top.png >/tmp/shot_top.log 2>&1'
+
+          docker exec octomap_capture bash -lc 'pkill -f rviz2 || true'
+          sleep 2
+          docker exec -d octomap_capture bash -lc \
+            'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/config/rviz/approach1_octomap_side.rviz >/tmp/rviz_side.log 2>&1'
+          sleep 6
+          docker exec octomap_capture bash -lc \
+            'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 '"$OUT"'/04_final_side.png >/tmp/shot_side.log 2>&1'
+
+      - name: Record RViz 3D orbit of final map
+        shell: bash
+        run: |
+          set -euxo pipefail
+          OUT="/workspace/results/approach_1/octomap/${{ matrix.env_name }}/raw_pointcloud"
+          docker exec octomap_capture bash -lc 'pkill -f rviz2 || true'
+          sleep 2
+          docker exec -d octomap_capture bash -lc \
+            'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/config/rviz/approach1_octomap_isometric.rviz >/tmp/rviz_orbit.log 2>&1'
+          sleep 6
+          docker exec -d octomap_capture bash -lc \
+            'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t 12 -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p '"$OUT"'/05_octomap_3d_orbit_rviz.mp4 >/tmp/orbit_ffmpeg.log 2>&1'
+          sleep 1
+          docker exec octomap_capture bash -lc '
+            export DISPLAY=:99;
+            WIN=$(xdotool search --onlyvisible --name RViz | head -1 || true);
+            if [ -n "$WIN" ]; then
+              xdotool windowactivate --sync "$WIN";
+              for j in $(seq 1 24); do
+                xdotool mousemove --window "$WIN" 800 450 mousedown 1 mousemove_relative --sync 22 0 mouseup 1;
+                sleep 0.35;
+              done;
+            fi'
+          docker exec octomap_capture bash -lc 'while pgrep -x ffmpeg >/dev/null; do sleep 1; done'
+
+      - name: Validate evidence files
+        shell: bash
+        run: |
+          set -euxo pipefail
+          OUT="results/approach_1/octomap/${{ matrix.env_name }}/raw_pointcloud"
+          for f in \
+            01_octomap_build_rviz.mp4 \
+            02_final_isometric.png \
+            03_final_top.png \
+            04_final_side.png \
+            05_octomap_3d_orbit_rviz.mp4 \
+            map.bt map.ot parameters.yaml \
+            octomap_isometric.rviz octomap_top.rviz octomap_side.rviz; do
+            test -s "$OUT/$f"
+          done
+          file "$OUT"/*.png "$OUT"/*.bt "$OUT"/*.ot
+
+      - name: Write evidence README
+        shell: bash
+        run: |
+          ROOT="results/approach_1/octomap/${{ matrix.env_name }}"
+          cat > "$ROOT/README.md" <<'EOF'
+          # Approach 1 - raw static OctoMap RViz evidence
+
+          This directory contains the OctoMap constructed directly from the verified stationary `/unilidar/cloud` PointCloud2 stream.
+
+          `raw_pointcloud/01_octomap_build_rviz.mp4` records the real RViz map construction during rosbag replay. `02_final_isometric.png`, `03_final_top.png`, and `04_final_side.png` are final RViz screenshots. `05_octomap_3d_orbit_rviz.mp4` is a real RViz camera-orbit verification of the completed 3D map. `map.bt` and `map.ot` are the native OctoMap files. The `.rviz` files preserve the reference views.
+
+          Baseline: `unilidar_lidar` fixed frame, 0.10 m OctoMap resolution, 15 m maximum sensor range, no ground-plane deletion.
+          EOF
+
+      - name: Commit verified OctoMap visual evidence
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git lfs install
+          git add .gitattributes results/approach_1/octomap config/rviz .github/workflows/approach1_octomap_raw_capture.yml docker/Dockerfile
+          git diff --cached --quiet || git commit -m "Add raw OctoMap RViz evidence for ${{ matrix.env_name }}"
+          git pull --rebase origin analysis/approach-1-static
+          git push origin HEAD:analysis/approach-1-static
+
+      - name: Upload evidence artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: octomap-raw-${{ matrix.env_name }}
+          path: results/approach_1/octomap/${{ matrix.env_name }}/raw_pointcloud/
+          if-no-files-found: error
