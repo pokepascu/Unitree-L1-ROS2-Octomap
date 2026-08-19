@@ -1,0 +1,85 @@
+name: Validated NAS ingest v2
+
+on:
+  push:
+    branches: [automation/nas-ingest]
+
+permissions:
+  contents: write
+
+env:
+  BASE_MAIN_SHA: e1c0395848f2ceb7fb8af028772218bc489517d0
+
+jobs:
+  ingest:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout unchanged main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          lfs: false
+
+      - name: Guard exact base SHA
+        run: test "$(git rev-parse HEAD)" = "$BASE_MAIN_SHA"
+
+      - name: Retrieve temporary preparation scripts
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/automation
+          git fetch origin automation/nas-ingest
+          for f in download_synology_folder.py validate_source_rosbags.py extract_static_rosbags.py prepare_two_commits.sh; do
+            git show "origin/automation/nas-ingest:automation/$f" > "/tmp/automation/$f"
+          done
+          chmod +x /tmp/automation/*
+
+      - name: Install tools
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git lfs install
+          sudo curl -fL https://github.com/foxglove/mcap/releases/latest/download/mcap-linux-amd64 -o /usr/local/bin/mcap
+          sudo chmod +x /usr/local/bin/mcap
+          python3 -m pip install --upgrade pip
+          python3 -m pip install mcap mcap-ros2-support pyyaml numpy zstandard lz4 requests
+
+      - name: Download exact NAS dataset
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf /tmp/nas_download
+          python3 /tmp/automation/download_synology_folder.py
+          find /tmp/nas_download -type f -printf '%p\t%s bytes\n' | sort
+
+      - name: Validate complete ROS message payloads against rosbag2 metadata
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 /tmp/automation/validate_source_rosbags.py
+
+      - name: Prepare the two requested commits locally and validate derived MCAPs
+        shell: bash
+        run: |
+          set -euxo pipefail
+          /tmp/automation/prepare_two_commits.sh
+          echo 'Prepared commits:'
+          git log --oneline "$BASE_MAIN_SHA"..HEAD
+          test "$(git rev-list --count "$BASE_MAIN_SHA"..HEAD)" -eq 2
+          find study_data -type f -name '*.mcap' -print0 | while IFS= read -r -d '' f; do
+            mcap doctor "$f"
+          done
+          git lfs ls-files
+
+      - name: Final main guard and atomic push
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "$BASE_MAIN_SHA"
+          test "$(git rev-list --count "$BASE_MAIN_SHA"..HEAD)" -eq 2
+          git push origin HEAD:main
