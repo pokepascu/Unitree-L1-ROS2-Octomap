@@ -38,11 +38,16 @@ jobs:
           lfs: true
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Install capture tools
+      - name: Verify capture tools
         shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y xvfb ffmpeg
+          set -euxo pipefail
+          if ! command -v Xvfb >/dev/null || ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb ffmpeg
+          fi
+          Xvfb -help >/dev/null 2>&1 || true
+          ffmpeg -version | head -1
 
       - name: Build existing ROS 2 Humble project image
         shell: bash
