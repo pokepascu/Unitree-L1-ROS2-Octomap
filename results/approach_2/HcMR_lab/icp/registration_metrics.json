@@ -1,12 +1,19 @@
 {
-  "method": "multi-start point-to-point ICP",
+  "method": "FPFH global hypotheses + odometry-displacement-constrained ICP + three-edge cycle selection",
   "reference": "scan_01",
   "voxel_m": 0.05,
   "range_m": [
     0.25,
     15.0
   ],
+  "base_to_lidar_translation_m": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "base_to_lidar_translation_source": "project_constraint",
   "extrinsic_rotation_assumed": false,
+  "physical_constraint_explanation": "With coincident robot and LiDAR origins, the norm of each inter-scan transform translation equals the recorded robot-origin displacement, regardless of the unknown constant LiDAR/base rotation.",
   "scans": {
     "scan_01": {
       "points": 68288,
@@ -32,30 +39,35 @@
         0.0
       ],
       "registration_to_scan_01": {
-        "fitness": 0.7502666666666666,
-        "rmse_m": 0.10914802252134567,
-        "correspondences": 33762,
-        "initial_yaw_hypothesis_deg": 330,
+        "method": "yaw_030_fixed_norm",
+        "fitness": 0.9176888888888889,
+        "rmse_m": 0.07902161231633759,
+        "p90_m": 0.12354859868147061,
+        "correspondences": 41296,
+        "score": 0.7596456642562137,
+        "translation_norm_m": 2.250557708658011,
+        "expected_translation_norm_m": 2.250557708658011,
+        "translation_norm_error_m": 0.0,
         "recorded_stationary_position_displacement_m": 2.250557708658011,
-        "icp_translation_norm_m": 0.472667973129405,
+        "translation_constraint_applied": true,
         "transform_source_to_scan01": [
           [
-            0.9997380640608722,
-            0.022805389223502896,
-            -0.0019280794011974603,
-            0.470480828148254
+            0.9999761909182302,
+            -0.004043100351189104,
+            -0.005592042222459476,
+            2.0928041767926615
           ],
           [
-            -0.022805750550085463,
-            0.9997399013299401,
-            -0.00016562196701248898,
-            -0.04420919165176478
+            0.004044105268121303,
+            0.9999918083919545,
+            0.00016840895583100196,
+            -0.8275335028218107
           ],
           [
-            0.0019238008368876838,
-            0.0002095498825311904,
-            0.9999981275378393,
-            0.010409156579213966
+            0.005591315520332839,
+            -0.0001910197535799864,
+            0.9999843502286472,
+            -0.01920883407839672
           ],
           [
             0.0,
@@ -78,30 +90,35 @@
         0.0
       ],
       "registration_to_scan_01": {
-        "fitness": 0.8074888888888889,
-        "rmse_m": 0.10321839479545905,
-        "correspondences": 36337,
-        "initial_yaw_hypothesis_deg": 0,
+        "method": "FPFH_RANSAC_seed_43",
+        "fitness": 0.7427111111111111,
+        "rmse_m": 0.11640475944457279,
+        "p90_m": 0.21894460774444682,
+        "correspondences": 33422,
+        "score": 0.5099015922219655,
+        "translation_norm_m": 4.83235511940089,
+        "expected_translation_norm_m": 4.83235511940089,
+        "translation_norm_error_m": 0.0,
         "recorded_stationary_position_displacement_m": 4.83235511940089,
-        "icp_translation_norm_m": 0.21907895089742396,
+        "translation_constraint_applied": true,
         "transform_source_to_scan01": [
           [
-            0.9983942713458324,
-            0.056473546457981694,
-            0.004429164060836544,
-            0.19129092476379958
+            0.9985286827223064,
+            0.05399353030638989,
+            -0.0050168183050046024,
+            4.39826229736805
           ],
           [
-            -0.05645659271862641,
-            0.9983975783304919,
-            -0.003863770491553579,
-            0.10623122737124226
+            -0.054017249415235814,
+            0.9985288510513204,
+            -0.004719150743537193,
+            -2.001553987286258
           ],
           [
-            -0.004640267494725426,
-            0.003607510813095142,
-            0.9999827267424732,
-            0.010876357870431674
+            0.004754634209337823,
+            0.004983202101164757,
+            0.999976280293865,
+            -0.026951800110518447
           ],
           [
             0.0,
@@ -113,6 +130,211 @@
       }
     }
   },
-  "merged_points": 131133,
-  "caution": "ICP estimates sensor-frame rigid transforms from measured geometry. Recorded stop positions are diagnostics only; no unknown LiDAR rotation was invented."
+  "pairwise_validation": {
+    "scan02_to_scan01_candidates": [
+      {
+        "method": "FPFH_RANSAC_seed_43",
+        "fitness": 0.9178222222222222,
+        "rmse_m": 0.07901825525266343,
+        "p90_m": 0.1232412604992401,
+        "correspondences": 41302,
+        "score": 0.7597857117168954,
+        "translation_norm_m": 2.250557708658011,
+        "expected_translation_norm_m": 2.250557708658011,
+        "translation_norm_error_m": 0.0
+      },
+      {
+        "method": "FPFH_RANSAC_seed_19",
+        "fitness": 0.9178666666666667,
+        "rmse_m": 0.0790470342144829,
+        "p90_m": 0.12351170985251315,
+        "correspondences": 41304,
+        "score": 0.7597725982377009,
+        "translation_norm_m": 2.2505577086580106,
+        "expected_translation_norm_m": 2.250557708658011,
+        "translation_norm_error_m": 4.440892098500626e-16
+      },
+      {
+        "method": "yaw_000_fixed_norm",
+        "fitness": 0.9178666666666667,
+        "rmse_m": 0.07904996548701324,
+        "p90_m": 0.12347049544447644,
+        "correspondences": 41304,
+        "score": 0.7597667356926403,
+        "translation_norm_m": 2.2505577086580106,
+        "expected_translation_norm_m": 2.250557708658011,
+        "translation_norm_error_m": 4.440892098500626e-16
+      },
+      {
+        "method": "FPFH_FGR",
+        "fitness": 0.9179111111111111,
+        "rmse_m": 0.07907372202332132,
+        "p90_m": 0.12343846920290838,
+        "correspondences": 41306,
+        "score": 0.7597636670644685,
+        "translation_norm_m": 2.2505577086580115,
+        "expected_translation_norm_m": 2.250557708658011,
+        "translation_norm_error_m": 4.440892098500626e-16
+      },
+      {
+        "method": "yaw_030_fixed_norm",
+        "fitness": 0.9176888888888889,
+        "rmse_m": 0.07902161231633759,
+        "p90_m": 0.12354859868147061,
+        "correspondences": 41296,
+        "score": 0.7596456642562137,
+        "translation_norm_m": 2.250557708658011,
+        "expected_translation_norm_m": 2.250557708658011,
+        "translation_norm_error_m": 0.0
+      }
+    ],
+    "scan03_to_scan02_candidates": [
+      {
+        "method": "FPFH_RANSAC_seed_19",
+        "fitness": 0.8746222222222222,
+        "rmse_m": 0.10153977119392738,
+        "p90_m": 0.1957838124272787,
+        "correspondences": 39358,
+        "score": 0.6715426798343674,
+        "translation_norm_m": 2.5872135590244567,
+        "expected_translation_norm_m": 2.587213559024457,
+        "translation_norm_error_m": 4.440892098500626e-16
+      },
+      {
+        "method": "FPFH_RANSAC_seed_7",
+        "fitness": 0.8745555555555555,
+        "rmse_m": 0.101534359084156,
+        "p90_m": 0.19572232780646026,
+        "correspondences": 39355,
+        "score": 0.6714868373872436,
+        "translation_norm_m": 2.587213559024457,
+        "expected_translation_norm_m": 2.587213559024457,
+        "translation_norm_error_m": 0.0
+      },
+      {
+        "method": "FPFH_FGR",
+        "fitness": 0.8747111111111111,
+        "rmse_m": 0.10162139007570212,
+        "p90_m": 0.1957743612526618,
+        "correspondences": 39362,
+        "score": 0.6714683309597068,
+        "translation_norm_m": 2.5872135590244567,
+        "expected_translation_norm_m": 2.587213559024457,
+        "translation_norm_error_m": 4.440892098500626e-16
+      },
+      {
+        "method": "FPFH_RANSAC_seed_43",
+        "fitness": 0.8744222222222222,
+        "rmse_m": 0.10165496984824589,
+        "p90_m": 0.19560370179723302,
+        "correspondences": 39349,
+        "score": 0.6711122825257304,
+        "translation_norm_m": 2.5872135590244567,
+        "expected_translation_norm_m": 2.587213559024457,
+        "translation_norm_error_m": 4.440892098500626e-16
+      },
+      {
+        "method": "yaw_030_fixed_norm",
+        "fitness": 0.5783111111111111,
+        "rmse_m": 0.11864489007080496,
+        "p90_m": 0.22691629859561188,
+        "correspondences": 26024,
+        "score": 0.3410213309695012,
+        "translation_norm_m": 2.587213559024457,
+        "expected_translation_norm_m": 2.587213559024457,
+        "translation_norm_error_m": 0.0
+      }
+    ],
+    "scan03_to_scan01_candidates": [
+      {
+        "method": "FPFH_RANSAC_seed_43",
+        "fitness": 0.7427111111111111,
+        "rmse_m": 0.11640475944457279,
+        "p90_m": 0.21894460774444682,
+        "correspondences": 33422,
+        "score": 0.5099015922219655,
+        "translation_norm_m": 4.83235511940089,
+        "expected_translation_norm_m": 4.83235511940089,
+        "translation_norm_error_m": 0.0
+      },
+      {
+        "method": "FPFH_FGR",
+        "fitness": 0.7402,
+        "rmse_m": 0.11567720674737819,
+        "p90_m": 0.2170300618179171,
+        "correspondences": 33309,
+        "score": 0.5088455865052436,
+        "translation_norm_m": 4.832355119400891,
+        "expected_translation_norm_m": 4.83235511940089,
+        "translation_norm_error_m": 8.881784197001252e-16
+      },
+      {
+        "method": "FPFH_RANSAC_seed_7",
+        "fitness": 0.7386444444444444,
+        "rmse_m": 0.1150702162073126,
+        "p90_m": 0.21571536295051802,
+        "correspondences": 33239,
+        "score": 0.5085040120298192,
+        "translation_norm_m": 4.83235511940089,
+        "expected_translation_norm_m": 4.83235511940089,
+        "translation_norm_error_m": 0.0
+      },
+      {
+        "method": "FPFH_RANSAC_seed_19",
+        "fitness": 0.7381555555555556,
+        "rmse_m": 0.11488969133290051,
+        "p90_m": 0.215302012737421,
+        "correspondences": 33217,
+        "score": 0.5083761728897546,
+        "translation_norm_m": 4.83235511940089,
+        "expected_translation_norm_m": 4.83235511940089,
+        "translation_norm_error_m": 0.0
+      },
+      {
+        "method": "yaw_000_fixed_norm",
+        "fitness": 0.5020444444444444,
+        "rmse_m": 0.13093842598408265,
+        "p90_m": 0.22787679333537034,
+        "correspondences": 22592,
+        "score": 0.2401675924762791,
+        "translation_norm_m": 4.83235511940089,
+        "expected_translation_norm_m": 4.83235511940089,
+        "translation_norm_error_m": 0.0
+      }
+    ],
+    "selected_scan03_to_scan02": {
+      "method": "FPFH_RANSAC_seed_19",
+      "fitness": 0.8746222222222222,
+      "rmse_m": 0.10153977119392738,
+      "p90_m": 0.1957838124272787,
+      "correspondences": 39358,
+      "score": 0.6715426798343674,
+      "translation_norm_m": 2.5872135590244567,
+      "expected_translation_norm_m": 2.587213559024457,
+      "translation_norm_error_m": 4.440892098500626e-16
+    },
+    "cycle": {
+      "translation_cycle_error_m": 0.004770520605261322,
+      "rotation_cycle_error_deg": 0.5471036053788846,
+      "chain_scan03_to_scan01_translation_norm_m": 4.832489420453557,
+      "recorded_scan03_to_scan01_displacement_m": 4.83235511940089,
+      "chain_displacement_norm_error_m": 0.0001343010526673183
+    },
+    "joint_score": 1.9287142838226239
+  },
+  "acceptance": {
+    "accepted": true,
+    "minimum_pair_fitness": 0.7427111111111111,
+    "maximum_pair_rmse_m": 0.11640475944457279,
+    "thresholds": {
+      "min_pair_fitness": 0.25,
+      "max_pair_rmse_m": 0.22,
+      "max_cycle_translation_m": 0.75,
+      "max_cycle_rotation_deg": 20.0,
+      "max_chain_displacement_norm_error_m": 0.75
+    }
+  },
+  "accepted": true,
+  "merged_points": 131343,
+  "caution": "The zero-translation base/LiDAR constraint is used only to constrain inter-scan translation magnitudes to measured odometry displacements. No LiDAR/base rotation is assumed. The merged cloud/OctoMap is canonical only when acceptance.accepted is true."
 }
