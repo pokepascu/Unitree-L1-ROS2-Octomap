@@ -1,13 +1,6 @@
 name: Approach 1 static point-cloud analysis
 
 on:
-  push:
-    branches: [analysis/approach-1-static]
-    paths:
-      - 'tools/approach_1/analyze_static_cloud.py'
-      - 'config/approach_1/**'
-      - 'study_data/approach_1_single_static/**'
-      - '.github/workflows/approach1_static_analysis.yml'
   workflow_dispatch:
 
 concurrency:
