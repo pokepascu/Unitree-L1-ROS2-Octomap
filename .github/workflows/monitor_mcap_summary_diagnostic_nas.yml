@@ -1,0 +1,30 @@
+name: Monitor NAS MCAP summary diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  monitor:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Monitor NAS diagnostic run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euxo pipefail
+          sleep 8
+          RUN_ID=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow mcap_summary_diagnostic_nas.yml --branch automation/nas-ingest --event push --limit 1 --json databaseId --jq '.[0].databaseId')
+          test -n "$RUN_ID"
+          echo "Monitoring NAS MCAP diagnostic run $RUN_ID"
+          if ! gh run watch "$RUN_ID" --repo "$GITHUB_REPOSITORY" --exit-status --interval 5; then
+            echo '--- FAILED LOGS ---'
+            gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed || true
+            exit 1
+          fi
+          echo '--- COMPLETE LOG ---'
+          gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --log
