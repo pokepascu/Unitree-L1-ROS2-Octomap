@@ -13,16 +13,17 @@ ENV ROS_DISTRO=humble \
     PYTHONDONTWRITEBYTECODE=1
 
 LABEL org.opencontainers.image.title="Unitree L1 ROS 2" \
-      org.opencontainers.image.description="Minimal ROS 2 Humble, Unitree L1, OctoMap, RViz2, and rosbag2 environment" \
+      org.opencontainers.image.description="Minimal ROS 2 Humble, Unitree L1, OctoMap, RViz2, MCAP rosbag2 replay environment" \
       io.unitree-l1.sdk.commit="${UNITREE_SDK_COMMIT}"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# The official perception image already supplies PCL, colcon, rosbag2,
-# ros2topic, and the compiler. Add only the two requested runtime tools.
+# Runtime tools used both for live mapping and reproducible replay of the
+# recorded MCAP datasets in RViz2/OctoMap.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       libgl1-mesa-dri \
       ros-humble-octomap-server \
+      ros-humble-rosbag2-storage-mcap \
       ros-humble-rviz2 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -55,6 +56,7 @@ RUN source /opt/ros/humble/setup.bash \
     && ros2 pkg prefix unitree_lidar_ros2 \
     && ros2 pkg prefix l1_bringup \
     && ros2 pkg prefix l1_octomap_bringup \
+    && ros2 pkg prefix rosbag2_storage_mcap \
     && ros2 pkg executables octomap_server | grep -F \
       "octomap_server octomap_server_node" \
     && ros2 launch l1_bringup unitree_l1.launch.py --show-args \
