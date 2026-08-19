@@ -1,0 +1,218 @@
+name: Approach 2 odometry-constrained global registration correction
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/approach_2/register_three_static_scans.py'
+      - 'tools/approach_2/registration_tf_commands.py'
+      - '.github/workflows/approach2_registration_correction.yml'
+      - 'config/rviz/approach2_*.rviz'
+      - 'config/rviz/approach1_octomap_*.rviz'
+      - 'docker/Dockerfile'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: approach2-registration-correction-pr
+  cancel-in-progress: false
+
+jobs:
+  correct_registration:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        environment: [HcMR_lab, ISR_5th_floor]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Global registration constrained by recorded stop displacements
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 -m pip install --upgrade pip
+          python3 -m pip install mcap mcap-ros2-support numpy scipy pyyaml open3d
+          ROOT="results/approach_2/${{ matrix.environment }}"
+          rm -rf "$ROOT/icp" "$ROOT/merged_cloud" "$ROOT/octomap"
+          mkdir -p "$ROOT/icp" "$ROOT/merged_cloud" "$ROOT/octomap"
+          python3 tools/approach_2/register_three_static_scans.py \
+            --environment-dir "study_data/approach_2_three_static_icp/${{ matrix.environment }}" \
+            --out "$ROOT/icp"
+          python3 - <<'PY'
+          import json,sys
+          p="results/approach_2/${{ matrix.environment }}/icp/registration_metrics.json"
+          d=json.load(open(p))
+          print(json.dumps(d["acceptance"],indent=2))
+          if not d.get("accepted",False):
+              raise SystemExit("REGISTRATION_REJECTED_BY_PHYSICAL_AND_CYCLE_GATES")
+          PY
+          python3 tools/approach_2/registration_tf_commands.py \
+            --metrics "$ROOT/icp/registration_metrics.json" \
+            --out "$ROOT/icp/start_registration_tf.sh"
+          chmod +x "$ROOT/icp/start_registration_tf.sh"
+          cp "$ROOT/icp/merged_registered.xyz" "$ROOT/merged_cloud/merged_registered.xyz"
+          cp config/rviz/approach2_registered_scans_wide.rviz "$ROOT/icp/registered_scans_fitted.rviz"
+          cp config/rviz/approach2_merged_cloud_wide.rviz "$ROOT/merged_cloud/merged_isometric.rviz"
+          cp config/rviz/approach2_merged_cloud_top.rviz "$ROOT/merged_cloud/merged_top.rviz"
+          cp config/rviz/approach2_merged_cloud_side.rviz "$ROOT/merged_cloud/merged_side.rviz"
+          cp config/rviz/approach1_octomap_isometric.rviz "$ROOT/octomap/octomap_isometric.rviz"
+          cp config/rviz/approach1_octomap_top.rviz "$ROOT/octomap/octomap_top.rviz"
+          cp config/rviz/approach1_octomap_side.rviz "$ROOT/octomap/octomap_side.rviz"
+          cp "$ROOT/icp/registration_metrics.json" "$ROOT/octomap/registration_metrics.json"
+          chmod -R a+rwX "$ROOT/icp" "$ROOT/merged_cloud" "$ROOT/octomap"
+
+      - name: Build RViz / OctoMap image
+        run: docker build -t unitree-l1-evidence -f docker/Dockerfile .
+
+      - name: Start headless RViz container
+        shell: bash
+        run: |
+          set -euxo pipefail
+          docker run -d --rm --name a2corr --network host -v "$PWD:/workspace" unitree-l1-evidence sleep infinity
+          docker exec -d a2corr bash -lc 'Xvfb :99 -screen 0 1600x900x24 -ac >/tmp/xvfb.log 2>&1'
+          sleep 3
+
+      - name: Capture physically constrained ICP before and after
+        shell: bash
+        run: |
+          set -euxo pipefail
+          OUT="results/approach_2/${{ matrix.environment }}/icp"
+          for STATE in raw registered; do
+            docker exec a2corr bash -lc 'pkill -x rviz2 || true'; sleep 2
+            docker exec -d a2corr bash -lc \
+              'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/config/rviz/approach2_registered_scans_wide.rviz >/tmp/icp.log 2>&1'
+            sleep 6
+            for N in 01 02 03; do
+              docker exec a2corr bash -lc \
+                'source /opt/ros/humble/setup.bash; python3 /workspace/tools/approach_1/publish_xyz_cloud.py --xyz /workspace/'"$OUT"'/scan_'"$N"'_'"$STATE"'.xyz --topic /scan_'"$N"'_registered --frame-id unilidar_lidar --chunk-points 10000 --period 0.05'
+            done
+            sleep 2
+            if [ "$STATE" = raw ]; then F=01_before_global_icp.png; else F=02_after_global_icp.png; fi
+            docker exec a2corr bash -lc \
+              'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$OUT"'/'"$F"' >/dev/null 2>&1'
+          done
+
+      - name: Capture corrected merged cloud in three perspectives
+        shell: bash
+        run: |
+          set -euxo pipefail
+          OUT="results/approach_2/${{ matrix.environment }}/merged_cloud"
+          for ITEM in \
+            'approach2_merged_cloud_wide.rviz 01_merged_isometric.png' \
+            'approach2_merged_cloud_top.rviz 02_merged_top.png' \
+            'approach2_merged_cloud_side.rviz 03_merged_side.png'; do
+            set -- $ITEM; CFG=$1; FILE=$2
+            docker exec a2corr bash -lc 'pkill -x rviz2 || true'; sleep 2
+            docker exec -d a2corr bash -lc \
+              'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/config/rviz/'"$CFG"' >/tmp/merged.log 2>&1'
+            sleep 5
+            docker exec a2corr bash -lc \
+              'source /opt/ros/humble/setup.bash; python3 /workspace/tools/approach_1/publish_xyz_cloud.py --xyz /workspace/'"$OUT"'/merged_registered.xyz --topic /merged_cloud --frame-id unilidar_lidar --chunk-points 10000 --period 0.05'
+            sleep 2
+            docker exec a2corr bash -lc \
+              'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$OUT"'/'"$FILE"' >/dev/null 2>&1'
+          done
+
+      - name: Rebuild corrected OctoMap from three distinct registered origins
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ROOT="results/approach_2/${{ matrix.environment }}"; OUT="$ROOT/octomap"
+          docker exec a2corr bash -lc 'pkill -x rviz2 || true; pkill -x octomap_server_node || true'; sleep 2
+          docker exec -d a2corr bash -lc 'bash /workspace/'"$ROOT"'/icp/start_registration_tf.sh'; sleep 3
+          docker exec -d a2corr bash -lc \
+            'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_server_node --ros-args --params-file /workspace/ros2_ws/src/l1_octomap_bringup/config/octomap.yaml -r cloud_in:=/registered_cloud >/tmp/octomap.log 2>&1'
+          sleep 4
+          docker exec -d a2corr bash -lc \
+            'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/config/rviz/approach1_octomap_isometric.rviz >/tmp/octomap_rviz.log 2>&1'
+          sleep 6
+          docker exec -d a2corr bash -lc \
+            'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t 18 -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p /workspace/'"$OUT"'/01_octomap_build_rviz.mp4 >/tmp/octomap_video.log 2>&1'
+          sleep 1
+          docker exec a2corr bash -lc \
+            'source /opt/ros/humble/setup.bash; python3 /workspace/tools/approach_1/publish_xyz_cloud.py --xyz /workspace/'"$ROOT"'/icp/scan_01_raw.xyz --topic /registered_cloud --frame-id unilidar_lidar --chunk-points 8000 --period 0.05'
+          docker exec a2corr bash -lc \
+            'source /opt/ros/humble/setup.bash; python3 /workspace/tools/approach_1/publish_xyz_cloud.py --xyz /workspace/'"$ROOT"'/icp/scan_02_raw.xyz --topic /registered_cloud --frame-id scan_02 --chunk-points 8000 --period 0.05'
+          docker exec a2corr bash -lc \
+            'source /opt/ros/humble/setup.bash; python3 /workspace/tools/approach_1/publish_xyz_cloud.py --xyz /workspace/'"$ROOT"'/icp/scan_03_raw.xyz --topic /registered_cloud --frame-id scan_03 --chunk-points 8000 --period 0.05'
+          sleep 4
+          docker exec a2corr bash -lc 'pkill -INT -x ffmpeg || true; sleep 2'
+          docker exec a2corr bash -lc \
+            'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_saver_node --ros-args -p octomap_path:=/workspace/'"$OUT"'/map.bt'
+          docker exec a2corr bash -lc \
+            'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_saver_node --ros-args -p full:=true -p octomap_path:=/workspace/'"$OUT"'/map.ot'
+          docker exec a2corr bash -lc \
+            'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$OUT"'/02_final_isometric.png >/dev/null 2>&1'
+
+          docker exec a2corr bash -lc 'pkill -x rviz2 || true'; sleep 2
+          docker exec -d a2corr bash -lc \
+            'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/config/rviz/approach1_octomap_top.rviz >/tmp/top.log 2>&1'
+          sleep 5
+          docker exec a2corr bash -lc \
+            'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$OUT"'/03_final_top.png >/dev/null 2>&1'
+
+          docker exec a2corr bash -lc 'pkill -x rviz2 || true'; sleep 2
+          docker exec -d a2corr bash -lc \
+            'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/config/rviz/approach1_octomap_side.rviz >/tmp/side.log 2>&1'
+          sleep 5
+          docker exec a2corr bash -lc \
+            'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$OUT"'/04_final_side.png >/dev/null 2>&1'
+
+          docker exec a2corr bash -lc 'pkill -x rviz2 || true'; sleep 2
+          docker exec -d a2corr bash -lc \
+            'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/config/rviz/approach1_octomap_isometric.rviz >/tmp/orbit.log 2>&1'
+          sleep 5
+          docker exec -d a2corr bash -lc \
+            'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t 12 -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p /workspace/'"$OUT"'/05_3d_orbit_rviz.mp4 >/tmp/orbitvideo.log 2>&1'
+          sleep 1
+          docker exec a2corr bash -lc \
+            'export DISPLAY=:99; WIN=$(xdotool search --onlyvisible --name RViz | head -1 || true); if [ -n "$WIN" ]; then xdotool windowactivate --sync "$WIN"; for j in $(seq 1 24); do xdotool mousemove --window "$WIN" 800 450 mousedown 1 mousemove_relative --sync 22 0 mouseup 1; sleep 0.35; done; fi'
+          sleep 3
+          docker rm -f a2corr
+
+      - name: Validate and document corrected registration
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ROOT="results/approach_2/${{ matrix.environment }}"
+          for F in 01_before_global_icp.png 02_after_global_icp.png registration_metrics.json; do test -s "$ROOT/icp/$F"; done
+          for F in 01_merged_isometric.png 02_merged_top.png 03_merged_side.png merged_registered.xyz; do test -s "$ROOT/merged_cloud/$F"; done
+          for F in 01_octomap_build_rviz.mp4 02_final_isometric.png 03_final_top.png 04_final_side.png 05_3d_orbit_rviz.mp4 map.bt map.ot registration_metrics.json; do test -s "$ROOT/octomap/$F"; done
+          cat > "$ROOT/README.md" <<'EOF'
+          # Approach 2 — three stationary scans, globally constrained registration
+
+          The three original raw-scan RViz evidence folders are retained unchanged. Downstream registration is recomputed globally.
+
+          Because `base_link` and `unilidar_lidar` have exactly zero translation, the norm of each inter-scan transform translation must equal the robot-origin displacement measured by `/odom`. This norm is independent of the unknown constant LiDAR/base rotation. The pipeline therefore combines FPFH global hypotheses (Fast Global Registration and RANSAC), geometry multistart hypotheses, translation-norm-constrained ICP, and a three-edge cycle check (`2→1`, `3→2`, `3→1`). No LiDAR/base rotation is assumed.
+
+          `icp/registration_metrics.json` contains every selected transform, overlap/RMSE metrics, physical constraints and cycle residuals. The merged cloud and OctoMap are generated only after the acceptance gates pass. OctoMap still raycasts from the three distinct registered LiDAR origins and retains `.bt/.ot`, RViz construction video, three final perspectives and a 3D orbit.
+          EOF
+
+      - name: Commit corrected Approach 2 outputs
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git lfs install
+          git add .gitattributes results/approach_2 tools/approach_2 .github/workflows/approach2_registration_correction.yml
+          git diff --cached --quiet || git commit -m "Correct Approach 2 global registration for ${{ matrix.environment }}"
+          git pull --rebase origin analysis/approach-1-static
+          git push origin HEAD:analysis/approach-1-static
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: approach2-corrected-${{ matrix.environment }}
+          path: results/approach_2/${{ matrix.environment }}/
+          if-no-files-found: error

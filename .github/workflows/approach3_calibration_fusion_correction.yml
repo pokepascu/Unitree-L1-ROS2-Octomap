@@ -1,0 +1,234 @@
+name: Approach 3 zero-translation calibration and fused mapping correction
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/approach_3/calibrate_zero_translation_extrinsic.py'
+      - 'tools/approach_3/aggregate_extrinsic_calibrations.py'
+      - 'tools/approach_3/fuse_cloud_with_odom.py'
+      - 'config/approach_3/lidar_robot_extrinsics.yaml'
+      - 'config/rviz/approach3_fused_octomap_*.rviz'
+      - '.github/workflows/approach3_calibration_fusion_correction.yml'
+      - 'docker/Dockerfile'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: approach3-calibration-fusion-correction-pr
+  cancel-in-progress: false
+
+jobs:
+  calibrate_and_fuse:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Validate existing odometry and KISS-ICP trajectories
+        shell: bash
+        run: |
+          set -euxo pipefail
+          for RUN in HcMR_lab ISR_5th_floor_run_1 ISR_5th_floor_run_2; do
+            test -s "results/approach_3/$RUN/odometry/odometry_trajectory.csv"
+            test -s "results/approach_3/$RUN/kiss_icp/trajectory.csv"
+          done
+
+      - name: Estimate rotation independently on all three runs
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 -m pip install --upgrade pip
+          python3 -m pip install numpy
+          for RUN in HcMR_lab ISR_5th_floor_run_1 ISR_5th_floor_run_2; do
+            ROOT="results/approach_3/$RUN"
+            rm -rf "$ROOT/calibration" "$ROOT/odometry_lidar_fusion" "$ROOT/odometry_baseline" "$ROOT/octomap"
+            mkdir -p "$ROOT/calibration" "$ROOT/odometry_lidar_fusion" "$ROOT/loam_like"
+            cp config/approach_3/lidar_robot_extrinsics.yaml "$ROOT/calibration/lidar_robot_extrinsics.yaml"
+            python3 tools/approach_3/calibrate_zero_translation_extrinsic.py \
+              --odom "$ROOT/odometry/odometry_trajectory.csv" \
+              --kiss "$ROOT/kiss_icp/trajectory.csv" \
+              --out "$ROOT/calibration"
+          done
+
+      - name: Require one common physical robot-LiDAR rotation
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 tools/approach_3/aggregate_extrinsic_calibrations.py \
+            --input HcMR_lab=results/approach_3/HcMR_lab/calibration/extrinsic_rotation_estimate.json \
+            --input ISR_5th_floor_run_1=results/approach_3/ISR_5th_floor_run_1/calibration/extrinsic_rotation_estimate.json \
+            --input ISR_5th_floor_run_2=results/approach_3/ISR_5th_floor_run_2/calibration/extrinsic_rotation_estimate.json \
+            --out results/approach_3/common_extrinsic_rotation.json \
+            --max-angle-deg 10.0
+          cat results/approach_3/common_extrinsic_rotation.json
+          for RUN in HcMR_lab ISR_5th_floor_run_1 ISR_5th_floor_run_2; do
+            cp results/approach_3/common_extrinsic_rotation.json "results/approach_3/$RUN/calibration/common_extrinsic_rotation.json"
+          done
+
+      - name: Record explicit blockers if common calibration is not accepted
+        shell: bash
+        run: |
+          set -euxo pipefail
+          OK=$(python3 -c "import json; print('1' if json.load(open('results/approach_3/common_extrinsic_rotation.json'))['canonical_fusion_allowed'] else '0')")
+          if [ "$OK" = 1 ]; then exit 0; fi
+          for RUN in HcMR_lab ISR_5th_floor_run_1 ISR_5th_floor_run_2; do
+            ROOT="results/approach_3/$RUN"
+            cat > "$ROOT/odometry_lidar_fusion/BLOCKED_CALIBRATION_NOT_ACCEPTED.md" <<'EOF'
+          # Canonical odometry + LiDAR fusion blocked
+
+          The robot/LiDAR translation is fixed to exactly `(0,0,0) m`. Rotation was not assumed identity. It was estimated independently from recorded robot odometry versus KISS-ICP relative motions, then checked for cross-run consistency because the physical extrinsic must be constant. The common acceptance gate did not pass. See `../calibration/extrinsic_rotation_estimate.json`, `../calibration/common_extrinsic_rotation.json`, and `../../common_extrinsic_rotation.json`.
+
+          Possible resolutions: obtain or measure the true robot/LiDAR rotation; explicitly confirm that the axes are physically aligned if that is true; or record a dedicated calibration trajectory with stronger, non-degenerate translation and rotation excitation. The pipeline deliberately does not fabricate a fused map.
+          EOF
+          done
+
+      - name: Pull source MCAPs only when common calibration is accepted
+        shell: bash
+        run: |
+          set -euxo pipefail
+          OK=$(python3 -c "import json; print('1' if json.load(open('results/approach_3/common_extrinsic_rotation.json'))['canonical_fusion_allowed'] else '0')")
+          if [ "$OK" != 1 ]; then exit 0; fi
+          git lfs install
+          git lfs pull --include='bags/raw/HcMR_lab_2026-08-07_21-13-45/*.mcap,bags/raw/ISR_5th_floor_run_1_2026-08-07_21-31-58/*.mcap,bags/raw/ISR_5th_floor_run_2_2026-08-07_21-48-31/*.mcap'
+          test $(stat -c%s bags/raw/HcMR_lab_2026-08-07_21-13-45/rosbag2_2026_08_07-21_13_45_0.mcap) -gt 100000000
+          test $(stat -c%s bags/raw/ISR_5th_floor_run_1_2026-08-07_21-31-58/rosbag2_2026_08_07-21_31_58_0.mcap) -gt 400000000
+          test $(stat -c%s bags/raw/ISR_5th_floor_run_2_2026-08-07_21-48-31/rosbag2_2026_08_07-21_48_31_0.mcap) -gt 300000000
+
+      - name: Build ROS 2 mapping image only when fusion is supportable
+        shell: bash
+        run: |
+          set -euxo pipefail
+          OK=$(python3 -c "import json; print('1' if json.load(open('results/approach_3/common_extrinsic_rotation.json'))['canonical_fusion_allowed'] else '0')")
+          if [ "$OK" != 1 ]; then exit 0; fi
+          docker build -t unitree-l1-evidence -f docker/Dockerfile .
+
+      - name: Generate fused odometry + LiDAR OctoMaps for all three runs
+        shell: bash
+        run: |
+          set -euxo pipefail
+          OK=$(python3 -c "import json; print('1' if json.load(open('results/approach_3/common_extrinsic_rotation.json'))['canonical_fusion_allowed'] else '0')")
+          if [ "$OK" != 1 ]; then exit 0; fi
+
+          run_map () {
+            RUN="$1"; BAG="$2"; CAPTURE="$3"; DIST="$4"
+            ROOT="results/approach_3/$RUN"; OUT="$ROOT/odometry_lidar_fusion"
+            rm -rf "$OUT"; mkdir -p "$OUT"; chmod -R a+rwX "$OUT"
+            cp config/rviz/approach3_fused_octomap_isometric.rviz /tmp/fused_iso.rviz
+            cp config/rviz/approach3_fused_octomap_top.rviz /tmp/fused_top.rviz
+            cp config/rviz/approach3_fused_octomap_side.rviz /tmp/fused_side.rviz
+            sed -i "s/Distance: 65/Distance: $DIST/" /tmp/fused_iso.rviz /tmp/fused_top.rviz /tmp/fused_side.rviz
+            cp /tmp/fused_iso.rviz "$OUT/octomap_isometric.rviz"
+            cp /tmp/fused_top.rviz "$OUT/octomap_top.rviz"
+            cp /tmp/fused_side.rviz "$OUT/octomap_side.rviz"
+            cp results/approach_3/common_extrinsic_rotation.json "$OUT/common_extrinsic_rotation.json"
+
+            docker run -d --rm --name a3fusion --network host -v "$PWD:/workspace" unitree-l1-evidence sleep infinity
+            docker exec -d a3fusion bash -lc 'Xvfb :99 -screen 0 1600x900x24 -ac >/tmp/xvfb.log 2>&1'; sleep 3
+            docker exec -d a3fusion bash -lc 'source /opt/ros/humble/setup.bash; python#3 /workspace/tools/approach_3/fuse_cloud_with_odom.py --odom /workspace/'"$ROOT"'/odometry/odometry_trajectory.csv --extrinsic /workspace/results/approach_3/common_extrinsic_rotation.json >/tmp/fusion.log 2>&1'; sleep 2
+            docker exec -d a3fusion bash -lc 'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_server_node --ros-args -p frame_id:=odom -p resolution:=0.10 -p sensor_model.max_range:=15.0 -p filter_ground_plane:=false -r cloud_in:=/fused_cloud >/tmp/octomap.log 2>&1'; sleep 4
+            docker exec -d a3fusion bash -lc 'source /opt/ros/humble/setup.bash; python#3 /workspace/tools/approach_3/publish_odometry_path.py --csv /workspace/'"$ROOT"'/odometry/odometry_trajectory.csv --hold 400 >/tmp/path.log 2>&1'; sleep 2
+            docker exec -d a3fusion bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_isometric.rviz >/tmp/rviz.log 2>&1'; sleep 7
+            docker exec -d a3fusion bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t '"$CAPTURE"' -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p /workspace/'"$OUT"'/01_build_rviz.mp4 >/tmp/build_video.log 2>&1'; sleep 1
+            docker exec a3fusion bash -lc 'source /opt/ros/humble/setup.bash; ros2 bag play /workspace/'"$BAG"' --storage mcap --rate 4.0 --topics /unilidar/cloud'
+            sleep 5; docker exec a3fusion bash -lc 'pkill -INT -x ffmpeg || true; sleep 2'
+            docker exec a3fusion bash -lc 'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_saver_node --ros-args -p octomap_path:=/workspace/'"$OUT"'/map.bt'
+            docker exec a3fusion bash -lc 'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_saver_node --ros-args -p full:=true -p octomap_path:=/workspace/'"$OUT"'/map.ot'
+            docker exec a3fusion bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$OUT"'/02_final_isometric.png >/dev/null 2>&1'
+
+            docker exec a3fusion bash -lc 'pkill -x rviz2 || true'; sleep 2
+            docker exec -d a3fusion bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_top.rviz >/tmp/top.log 2>&1'; sleep 6
+            docker exec a3fusion bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$OUT"'/03_final_top.png >/dev/null 2>&1'
+
+            docker exec a3fusion bash -lc 'pkill -x rviz2 || true'; sleep 2
+            docker exec -d a3fusion bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_side.rviz >/tmp/side.log 2>&1'; sleep 6
+            docker exec a3fusion bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$OUT"'/04_final_side.png >/dev/null 2>&1'
+
+            docker exec a3fusion bash -lc 'pkill -x rviz2 || true'; sleep 2
+            docker exec -d a3fusion bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_isometric.rviz >/tmp/orbit.log 2>&1'; sleep 6
+            docker exec -d a3fusion bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t 12 -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p /workspace/'"$OUT"'/05_3d_orbit_rviz.mp4 >/tmp/orbit_video.log 2>&1'; sleep 1
+            docker exec a3fusion bash -lc 'export DISPLAY=:99; WIN=$(xdotool search --onlyvisible --name RViz | head -1 || true); if [ -n "$WIN" ]; then xdotool windowactivate --sync "$WIN"; for j in $(seq 1 24); do xdotool mousemove --window "$WIN" 800 450 mousedown 1 mousemove_relative --sync 22 0 mouseup 1; sleep 0.35; done; fisleep 3
+            docker exec a3fusion bash -lc 'tail -40 /tmp/fusion.log || true; tail -60 /tmp/octomap.log || true'
+            docker rm -f a3fusion
+          }
+
+          run_map HcMR_lab bags/raw/HcMR_lab_2026-08-07_21-13-45 60 35
+          run_map ISR_5th_floor_run_1 bags/raw/ISR_5th_floor_run_1_2026-08-07_21-31-58 180 75
+          run_map ISR_5th_floor_run_2 bags/raw/ISR_5th_floor_run_2_2026-08-07_21-48-31 145 70
+
+      - name: Record LOAM-like status and final documentation
+        shell: bash
+        run: |
+          set -euxo pipefail
+          OK=$(python3 -c "import json; print('1' if json.load(open('results/approach_3/common_extrinsic_rotation.json'))['canonical_fusion_allowed'] else '0')")
+          for RUN in HcMR_lab ISR_5th_floor_run_1 ISR_5th_floor_run_2; do
+            ROOT="results/approach_3/$RUN"
+            cat > "$ROOT/loam_like/METHOD_STATUS.md" <<'EOF'
+          # LOAM-like / LiDAR-inertial method status
+
+          The LiDAR-to-robot translation is exactly zero. That does not by itself establish the IMU-to-LiDAR rotational extrinsic required for trustworthy IMU deskew and LiDAR-inertial estimation. Therefore FAST-LIO, LIO-SAM or another LOAM-family LiDAR/IMU output is not labelled canonical here unless that rotation is independently established.
+
+          Resolution paths: provide the real IMU/LiDAR rotational calibration; explicitly confirm aligned axes if physically true; or collect a dedicated rotational calibration dataset. KISS-ICP remains the validated LiDAR-only mobile method.
+          EOF
+            if [ "$OK" = 1 ]; then
+              cat > "$ROOT/README.md" <<'EOF'
+          # Approach 3 — mobile LiDAR + robot odometry
+
+          `raw_lidar/` retains raw RViz mobile evidence. `odometry/` retains the recorded robot trajectory. `kiss_icp/` retains the independent LiDAR-only KISS-ICP v1.3.0 result. `calibration/` records the zero translation constraint, the run-specific rotation estimate and the cross-run common extrinsic. `odometry_lidar_fusion/` contains the canonical odometry+LiDAR OctoMap generated with the common accepted rotation: RViz build video, isometric/top/side views, a real 3D orbit and native `.bt/.ot` maps. `loam_like/` records the remaining IMU/LiDAR calibration limitation.
+          EOF
+            else
+              cat > "$ROOT/README.md" <<'EOF'
+          # Approach 3 — mobile LiDAR + robot odometry
+
+          Raw mobile LiDAR, recorded odometry and KISS-ICP evidence are present. Translation `base_link -> unilidar_lidar` is exactly zero. A rotation was estimated from trajectory agreement without assuming aligned axes, then checked across all three runs. The common calibration gate did not pass, so a canonical odometry+LiDAR map was deliberately not fabricated. See `calibration/` and `odometry_lidar_fusion/BLOCKED_CALIBRATION_NOT_ACCEPTED.md` for the quantitative reason and resolution paths.
+          EOF
+            fi
+          done
+
+      - name: Validate supported outputs
+        shell: bash
+        run: |
+          set -euxo pipefail
+          test -s results/approach_3/common_extrinsic_rotation.json
+          OK=$(python3 -c "import json; print('1' if json.load(open('results/approach_3/common_extrinsic_rotation.json'))['canonical_fusion_allowed'] else '0')")
+          for RUN in HcMR_lab ISR_5th_floor_run_1 ISR_5th_floor_run_2; do
+            ROOT="results/approach_3/$RUN"
+            test -s "$ROOT/raw_lidar/01_mobile_raw_rviz.mp4"
+            test -s "$ROOT/odometry/odometry_trajectory.csv"
+            test -s "$ROOT/kiss_icp/trajectory.csv"
+            test -s "$ROOT/kiss_icp/01_kiss_icp_rviz.mp4"
+            test -s "$ROOT/calibration/extrinsic_rotation_estimate.json"
+            test -s "$ROOT/calibration/common_extrinsic_rotation.json"
+            test -s "$ROOT/loam_like/METHOD_STATUS.md"
+            if [ "$OK" = 1 ]; then
+              for F in 01_build_rviz.mp4 02_final_isometric.png 03_final_top.png 04_final_side.png 05_3d_orbit_rviz.mp4 map.bt map.ot common_extrinsic_rotation.json; do test -s "$ROOT/odometry_lidar_fusion/$F"; done
+            else
+              test -s "$ROOT/odometry_lidar_fusion/BLOCKED_CALIBRATION_NOT_ACCEPTED.md"
+            fi
+          done
+
+      - name: Commit corrected Approach 3 calibration/fusion results
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git lfs install
+          git add .gitattributes results/approach_3 tools/approach_3 config/approach_3 config/rviz/approach3_fused_octomap_*.rviz .github/workflows/approach3_calibration_fusion_correction.yml
+          git diff --cached --quiet || git commit -m 'Complete zero-translation Approach 3 calibration and fusion'
+          git pull --rebase origin analysis/approach-1-static
+          git push origin HEAD:analysis/approach-1-static
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: approach3-zero-translation-calibration-fusion
+          path: results/approach_3/
+          if-no-files-found: error
