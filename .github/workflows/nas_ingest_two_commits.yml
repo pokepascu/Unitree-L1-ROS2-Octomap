@@ -1,0 +1,319 @@
+name: NAS ingest and static dataset preparation
+
+on:
+  push:
+    branches: [automation/nas-ingest]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  SHARE_URL: https://nas-greenbotics.isr.uc.pt/drive/d/s/19Nbg4F76IZ5qEWUbGyWhFfmqULZf0kO/lzGW7jJopGGo_ZGmhFpz4dQizFZiahPs-P7_gYpHyaA0
+
+jobs:
+  ingest:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          lfs: true
+
+      - name: Configure git and Git LFS
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git lfs install
+
+      - name: Install Synology downloader and MCAP tools
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cargo install --git https://github.com/jerry73204/synology-dl --locked || cargo install --git https://github.com/jerry73204/synology-dl
+          sudo curl -L https://github.com/foxglove/mcap/releases/latest/download/mcap-linux-amd64 -o /usr/local/bin/mcap
+          sudo chmod +x /usr/local/bin/mcap
+          python3 -m pip install --upgrade pip
+          python3 -m pip install mcap mcap-ros2-support pyyaml numpy
+
+      - name: Download NAS shared data
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf /tmp/nas_download
+          mkdir -p /tmp/nas_download
+          synology-dl -f "$SHARE_URL" /tmp/nas_download
+          echo "Downloaded files:"
+          find /tmp/nas_download -maxdepth 5 -type f -printf '%p %s bytes\n' | sort
+          find /tmp/nas_download -type f -name '*.zip' -print0 | while IFS= read -r -d '' z; do
+            d="${z%.zip}_unzipped"
+            mkdir -p "$d"
+            unzip -o "$z" -d "$d"
+          done
+
+      - name: Prepare raw rosbag commit
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/original_metadata
+          for b in 21_13_45 21_31_58 21_48_31; do
+            src=$(find bags -maxdepth 1 -type f -name "*${b}*_0.mcap" | head -n1 || true)
+            if [ -n "$src" ]; then cp "$src" "/tmp/original_metadata/${b}.yaml"; fi
+          done
+
+          git rm -f bags/rosbag2_2026_08_07-21_13_45_0.mcap bags/rosbag2_2026_08_07-21_31_58_0.mcap bags/rosbag2_2026_08_07-21_48_31_0.mcap bags/README.txt || true
+          rm -f bags/.gitkeep
+
+          grep -q '^bags/\*\*/\*.mcap filter=lfs' .gitattributes 2>/dev/null || echo 'bags/**/*.mcap filter=lfs diff=lfs merge=lfs -text' >> .gitattributes
+          grep -q '^study_data/\*\*/\*.mcap filter=lfs' .gitattributes 2>/dev/null || echo 'study_data/**/*.mcap filter=lfs diff=lfs merge=lfs -text' >> .gitattributes
+
+          mkdir -p bags/raw/HcMR_lab_2026-08-07_21-13-45
+          mkdir -p bags/raw/ISR_5th_floor_run_1_2026-08-07_21-31-58
+          mkdir -p bags/raw/ISR_5th_floor_run_2_2026-08-07_21-48-31
+
+          locate_bag() {
+            local needle="$1"
+            find /tmp/nas_download -type f -name "*${needle}*_0.mcap" -size +100k -print | sort | head -n1
+          }
+
+          LAB=$(locate_bag '21_13_45')
+          FLOOR1=$(locate_bag '21_31_58')
+          FLOOR2=$(locate_bag '21_48_31')
+          test -n "$LAB" && test -n "$FLOOR1" && test -n "$FLOOR2"
+
+          cp "$LAB" bags/raw/HcMR_lab_2026-08-07_21-13-45/rosbag2_2026_08_07-21_13_45_0.mcap
+          cp "$FLOOR1" bags/raw/ISR_5th_floor_run_1_2026-08-07_21-31-58/rosbag2_2026_08_07-21_31_58_0.mcap
+          cp "$FLOOR2" bags/raw/ISR_5th_floor_run_2_2026-08-07_21-48-31-58/rosbag2_2026_08_07-21_48_31_0.mcap 2>/dev/null || true
+          # Correct destination if typo-safe fallback directory above was not used.
+          if [ ! -f bags/raw/ISR_5th_floor_run_2_2026-08-07_21-48-31/rosbag2_2026_08_07-21_48_31_0.mcap ]; then
+            cp "$FLOOR2" bags/raw/ISR_5th_floor_run_2_2026-08-07_21-48-31/rosbag2_2026_08_07-21_48_31_0.mcap
+          fi
+          rm -rf bags/raw/ISR_5th_floor_run_2_2026-08-07_21-48-31-58 || true
+
+          cp /tmp/original_metadata/21_13_45.yaml bags/raw/HcMR_lab_2026-08-07_21-13-45/metadata.yaml
+          cp /tmp/original_metadata/21_31_58.yaml bags/raw/ISR_5th_floor_run_1_2026-08-07_21-31-58/metadata.yaml
+          cp /tmp/original_metadata/21_48_31.yaml bags/raw/ISR_5th_floor_run_2_2026-08-07_21-48-31/metadata.yaml
+
+          cat > bags/README.md <<'EOF'
+          # Raw ROS 2 bags — Unitree L1 mapping experiments
+
+          These datasets were recorded on **7 August 2026** for the HcMR/ISR mapping study. The LiDAR is a **Unitree L1 3D LiDAR** running in ROS 2 Humble. The mobile base odometry and velocity commands were bridged from the base ROS environment into ROS 2 during acquisition.
+
+          ## Locations
+
+          | Dataset | Environment |
+          |---|---|
+          | `HcMR_lab_2026-08-07_21-13-45` | HcMR laboratory, ISR |
+          | `ISR_5th_floor_run_1_2026-08-07_21-31-58` | ISR building, **5th floor**, mobile run 1 |
+          | `ISR_5th_floor_run_2_2026-08-07_21-48-31` | ISR building, **5th floor**, mobile run 2 |
+
+          The previous `Floor 4` label was incorrect; the recordings are from the **5th floor**.
+
+          ## Relevant topics
+
+          The bags contain the data needed for the three mapping approaches, including:
+
+          - `/unilidar/cloud` — `sensor_msgs/msg/PointCloud2`, Unitree L1 3D point cloud.
+          - `/unilidar/imu` — `sensor_msgs/msg/Imu`, LiDAR IMU measurements.
+          - `/odom` — `nav_msgs/msg/Odometry`, mobile-base odometry.
+          - `/tf` — `tf2_msgs/msg/TFMessage`, dynamic transforms recorded from the base.
+          - `/cmd_vel` — `geometry_msgs/msg/Twist`, commanded base velocities.
+
+          The original rosbag2 metadata is stored beside each MCAP as `metadata.yaml`.
+
+          ## LiDAR mounting transform
+
+          The measured LiDAR origin relative to the robot `base_link` is:
+
+          ```text
+          translation (base_link -> unilidar_lidar):
+          x = 0.0 m
+          y = 0.0 m
+          z = 1.0 m
+          ```
+
+          The mounting **rotation has not been independently specified** in the acquisition notes. Do not silently infer a non-zero rotation. If the sensor axes are confirmed aligned with `base_link`, an identity rotation can then be documented explicitly.
+
+          ## Study use
+
+          These full recordings are the immutable source datasets. Derived static 30 s subsets used by Approach 1 (single static scan) and Approach 2 (three static scans + ICP) are stored under `study_data/` and generated from these source bags without altering the original data.
+
+          ## Visualisation
+
+          `bags/unitree_l1.rviz` can be used as a starting RViz2 configuration for viewing `/unilidar/cloud`.
+          EOF
+
+          mcap doctor bags/raw/HcMR_lab_2026-08-07_21-13-45/rosbag2_2026_08_07-21_13_45_0.mcap
+          mcap doctor bags/raw/ISR_5th_floor_run_1_2026-08-07_21-31-58/rosbag2_2026_08_07-21_31_58_0.mcap
+          mcap doctor bags/raw/ISR_5th_floor_run_2_2026-08-07_21-48-31/rosbag2_2026_08_07-21_48_31_0.mcap
+
+          git add .gitattributes bags
+          git commit -m "Add raw Unitree L1 rosbags for HcMR lab and ISR 5th floor"
+
+      - name: Extract static windows and prepare second commit
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cat > /tmp/extract_static.py <<'PY'
+          #!/usr/bin/env python3
+          import csv, math, os, subprocess, sys
+          from pathlib import Path
+          import numpy as np
+          import yaml
+          from mcap.reader import make_reader
+          from mcap_ros2.decoder import DecoderFactory
+
+          WINDOW_NS = 30_000_000_000
+          STEP_NS = 1_000_000_000
+          LIN_STATIC = 0.035
+          ANG_STATIC = 0.035
+
+          SOURCES = {
+              "HcMR_lab": Path("bags/raw/HcMR_lab_2026-08-07_21-13-45"),
+              "ISR_5th_floor_run_1": Path("bags/raw/ISR_5th_floor_run_1_2026-08-07_21-31-58"),
+              "ISR_5th_floor_run_2": Path("bags/raw/ISR_5th_floor_run_2_2026-08-07_21-48-31"),
+          }
+
+          def yaw(q):
+              return math.atan2(2*(q.w*q.z + q.x*q.y), 1 - 2*(q.y*q.y + q.z*q.z))
+
+          def unwrap_span(a):
+              if len(a) < 2: return 0.0
+              return float(np.ptp(np.unwrap(np.asarray(a))))
+
+          def read_odom(bag):
+              rows=[]
+              with bag.open('rb') as f:
+                  r=make_reader(f, decoder_factories=[DecoderFactory()])
+                  for schema, channel, msg, ros in r.iter_decoded_messages(topics=['/odom']):
+                      p=ros.pose.pose.position
+                      q=ros.pose.pose.orientation
+                      tw=ros.twist.twist
+                      lin=math.sqrt(tw.linear.x**2 + tw.linear.y**2 + tw.linear.z**2)
+                      ang=math.sqrt(tw.angular.x**2 + tw.angular.y**2 + tw.angular.z**2)
+                      rows.append((msg.log_time,p.x,p.y,p.z,yaw(q),lin,ang))
+              if not rows: raise RuntimeError(f'No /odom messages in {bag}')
+              return np.asarray(rows,float)
+
+          def cloud_count(bag, start, end):
+              n=0
+              with bag.open('rb') as f:
+                  r=make_reader(f)
+                  for schema, channel, msg in r.iter_messages(start_time=int(start), end_time=int(end), topics=['/unilidar/cloud']):
+                      n += 1
+              return n
+
+          def candidates(bag, label):
+              a=read_odom(bag)
+              t=a[:,0].astype(np.int64)
+              out=[]
+              start0=int(t[0]); end0=int(t[-1])
+              for s in range(start0, end0-WINDOW_NS+1, STEP_NS):
+                  e=s+WINDOW_NS
+                  i0=np.searchsorted(t,s,'left'); i1=np.searchsorted(t,e,'right')
+                  w=a[i0:i1]
+                  if len(w) < 20: continue
+                  xyz=w[:,1:4]
+                  center=np.median(xyz,axis=0)
+                  radius=float(np.max(np.linalg.norm(xyz-center,axis=1)))
+                  path=float(np.sum(np.linalg.norm(np.diff(xyz,axis=0),axis=1))) if len(xyz)>1 else 0.0
+                  yspan=unwrap_span(w[:,4])
+                  l95=float(np.percentile(w[:,5],95)); a95=float(np.percentile(w[:,6],95))
+                  score=radius + 0.15*path + 0.5*yspan + 4*l95 + 2*a95
+                  out.append(dict(source=label,start_ns=s,end_ns=e,score=score,radius_m=radius,path_m=path,yaw_span_rad=yspan,linear95=l95,angular95=a95,x=float(center[0]),y=float(center[1]),z=float(center[2])))
+              return out
+
+          def select(cands, n, require_position_separation=True):
+              picked=[]
+              for c in sorted(cands,key=lambda x:x['score']):
+                  if any(abs(c['start_ns']-p['start_ns']) < WINDOW_NS for p in picked if c['source']==p['source']):
+                      continue
+                  if require_position_separation and picked:
+                      same=[p for p in picked if p['source']==c['source']]
+                      if same and all(math.hypot(c['x']-p['x'], c['y']-p['y']) < 0.35 for p in same):
+                          continue
+                  picked.append(c)
+                  if len(picked)==n: break
+              return picked
+
+          def metadata_for(out_mcap, template, out_yaml):
+              with open(template) as f: meta=yaml.safe_load(f)
+              info=meta['rosbag2_bagfile_information']
+              counts={}
+              first=None; last=None; total=0
+              with open(out_mcap,'rb') as f:
+                  r=make_reader(f)
+                  for schema, channel, msg in r.iter_messages():
+                      counts[channel.topic]=counts.get(channel.topic,0)+1
+                      total += 1
+                      first=msg.log_time if first is None else min(first,msg.log_time)
+                      last=msg.log_time if last is None else max(last,msg.log_time)
+              for item in info.get('topics_with_message_count',[]):
+                  topic=item['topic_metadata']['name']
+                  item['message_count']=int(counts.get(topic,0))
+              info['message_count']=int(total)
+              info['starting_time']={'nanoseconds_since_epoch': int(first or 0)}
+              info['duration']={'nanoseconds': int((last-first) if first is not None and last is not None else 0)}
+              name=Path(out_mcap).name
+              info['relative_file_paths']=[name]
+              info['files']=[{'path':name,'starting_time':{'nanoseconds_since_epoch':int(first or 0)},'duration':{'nanoseconds':int((last-first) if first is not None and last is not None else 0)},'message_count':int(total)}]
+              with open(out_yaml,'w') as f: yaml.safe_dump(meta,f,sort_keys=False)
+
+          def slice_one(c, dest):
+              srcdir=SOURCES[c['source']]
+              src=next(srcdir.glob('*.mcap'))
+              dest.mkdir(parents=True,exist_ok=True)
+              out=dest/'static_30s.mcap'
+              subprocess.run(['mcap','filter',str(src),'--start',str(int(c['start_ns'])),'--end',str(int(c['end_ns'])),'-o',str(out)],check=True)
+              metadata_for(out, srcdir/'metadata.yaml', dest/'metadata.yaml')
+              c['cloud_messages']=cloud_count(src,int(c['start_ns']),int(c['end_ns']))
+              with open(dest/'selection.yaml','w') as f: yaml.safe_dump(c,f,sort_keys=False)
+              subprocess.run(['mcap','doctor',str(out)],check=True)
+
+          allc={k:candidates(next(v.glob('*.mcap')),k) for k,v in SOURCES.items()}
+          lab=allc['HcMR_lab']
+          floor=allc['ISR_5th_floor_run_1']+allc['ISR_5th_floor_run_2']
+          lab3=select(lab,3,True)
+          floor3=select(floor,3,True)
+          if len(lab3)<3: lab3=select(lab,3,False)
+          if len(floor3)<3: floor3=select(floor,3,False)
+          if not lab3 or not floor3: raise RuntimeError('Could not find 30 s windows in both environments')
+
+          root=Path('study_data')
+          # Approach 1: best single static window per environment.
+          slice_one(lab3[0],root/'approach_1_single_static'/'HcMR_lab'/'scan_01')
+          slice_one(floor3[0],root/'approach_1_single_static'/'ISR_5th_floor'/'scan_01')
+          # Approach 2: three static windows per environment when available.
+          for env, seq in [('HcMR_lab',lab3),('ISR_5th_floor',floor3)]:
+              for i,c in enumerate(seq,1):
+                  slice_one(c,root/'approach_2_three_static_icp'/env/f'scan_{i:02d}')
+
+          rows=lab3+floor3
+          with open(root/'static_selection_report.csv','w',newline='') as f:
+              w=csv.DictWriter(f,fieldnames=list(rows[0].keys()))
+              w.writeheader(); w.writerows(rows)
+
+          with open(root/'README.md','w') as f:
+              f.write('''# Derived static ROS 2 datasets\n\nThese bags are deterministic 30 s subsets extracted from the immutable source bags under `bags/raw/`. They are intended to provide the material required for the first two mapping approaches.\n\n## Approach 1 — single static scan\n\n- `approach_1_single_static/HcMR_lab/scan_01`\n- `approach_1_single_static/ISR_5th_floor/scan_01`\n\nEach bag preserves all topics in the selected time window, including `/unilidar/cloud`, `/odom`, `/tf`, `/cmd_vel`, and `/unilidar/imu`. This allows both mapping and independent verification that the platform remained approximately static.\n\n## Approach 2 — three static scans + ICP\n\nThree 30 s windows are provided for each environment when the recordings contain sufficient candidate windows. They are selected using recorded odometry: low 95th-percentile linear/angular velocity, low positional spread, low accumulated path length, and low yaw variation. The algorithm preferentially selects distinct robot poses.\n\n`selection.yaml` beside every bag records the exact absolute timestamps and residual-motion metrics. `static_selection_report.csv` summarizes the selected windows. This makes the extraction reproducible and prevents arbitrary manual trimming.\n\n## Important limitation\n\nA segment selected from odometry as static is an experimentally supported *static candidate*, not external ground truth. The residual-motion metrics must be reviewed before publication. For ICP, known scanner poses should be recorded/measured independently if absolute geometric accuracy is to be claimed.\n\n## LiDAR mounting\n\nKnown translation from `base_link` to the Unitree L1 origin: `(0.0, 0.0, 1.0) m`. Mounting rotation remains to be explicitly confirmed before quantitative mobile mapping.\n''')
+
+          Path('tools').mkdir(exist_ok=True)
+          Path('tools/extract_static_rosbags.py').write_text(Path('/tmp/extract_static.py').read_text())
+          PY
+
+          python3 /tmp/extract_static.py
+          git add study_data tools/extract_static_rosbags.py
+          git commit -m "Add static ROS bags for single-scan and three-scan ICP studies"
+
+      - name: Verify exactly two new main commits and push
+        shell: bash
+        run: |
+          set -euxo pipefail
+          echo "New commits to push:"
+          git log --oneline origin/main..HEAD
+          test "$(git rev-list --count origin/main..HEAD)" -eq 2
+          git lfs status
+          git push origin HEAD:main
