@@ -1,0 +1,102 @@
+name: Corrected NAS ingest and static dataset preparation
+
+on:
+  push:
+    branches: [automation/nas-ingest]
+
+permissions:
+  contents: write
+
+env:
+  BASE_MAIN_SHA: e1c0395848f2ceb7fb8af028772218bc489517d0
+
+jobs:
+  ingest:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          lfs: false
+
+      - name: Abort if main has changed before this controlled two-commit operation
+        shell: bash
+        run: |
+          set -euxo pipefail
+          test "$(git rev-parse HEAD)" = "$BASE_MAIN_SHA"
+
+      - name: Retrieve preparation scripts from temporary automation branch
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/automation
+          git fetch origin automation/nas-ingest
+          git show origin/automation/nas-ingest:automation/download_synology_folder.py > /tmp/automation/download_synology_folder.py
+          git show origin/automation/nas-ingest:automation/extract_static_rosbags.py > /tmp/automation/extract_static_rosbags.py
+          git show origin/automation/nas-ingest:automation/prepare_two_commits.sh > /tmp/automation/prepare_two_commits.sh
+          chmod +x /tmp/automation/*.py /tmp/automation/*.sh
+
+      - name: Configure Git LFS and analysis dependencies
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git lfs install
+          sudo curl -fL https://github.com/foxglove/mcap/releases/latest/download/mcap-linux-amd64 -o /usr/local/bin/mcap
+          sudo chmod +x /usr/local/bin/mcap
+          mcap --version
+          python3 -m pip install --upgrade pip
+          python3 -m pip install mcap mcap-ros2-support pyyaml numpy zstandard lz4 requests
+
+      - name: Download source data from Synology public folder
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf /tmp/nas_download
+          python3 /tmp/automation/download_synology_folder.py
+          find /tmp/nas_download -type f -printf '%p\t%s bytes\n' | sort
+
+      - name: Validate source data
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          import pathlib, yaml
+          for p in pathlib.Path('/tmp/nas_download').glob('*/metadata.yaml'):
+              with p.open() as f:
+                  obj=yaml.safe_load(f)
+              assert 'rosbag2_bagfile_information' in obj, p
+              print('YAML OK', p)
+          PY
+          COUNT=0
+          for f in /tmp/nas_download/*/*.mcap; do
+            test "$(stat -c%s "$f")" -gt 1000000
+            mcap doctor "$f"
+            mcap info "$f" | head -n 80
+            COUNT=$((COUNT+1))
+          done
+          test "$COUNT" -eq 3
+
+      - name: Prepare exactly two commits locally
+        shell: bash
+        run: |
+          set -euxo pipefail
+          /tmp/automation/prepare_two_commits.sh
+          echo 'Prepared commits:'
+          git log --oneline "$BASE_MAIN_SHA"..HEAD
+          test "$(git rev-list --count "$BASE_MAIN_SHA"..HEAD)" -eq 2
+          git lfs ls-files
+          git status --short
+
+      - name: Verify main is still unchanged and push both commits atomically
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "$BASE_MAIN_SHA"
+          test "$(git rev-list --count "$BASE_MAIN_SHA"..HEAD)" -eq 2
+          git push origin HEAD:main
