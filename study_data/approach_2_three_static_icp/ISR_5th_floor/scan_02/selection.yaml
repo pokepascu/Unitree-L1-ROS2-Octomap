@@ -1,0 +1,20 @@
+approach: approach_2_three_static_icp
+environment: ISR_5th_floor
+scan: scan_02
+source: ISR_5th_floor_run_1
+start: 1786134801736246528
+end: 1786134805059976704
+pose:
+- 2.307
+- -3.125
+- 0.0
+note: Strict stationary interval; only ~3.3 s, retained because it is a nearby overlapping
+  viewpoint.
+duration_s: 3.323730176
+message_count: 846
+topic_counts:
+  /cmd_vel: 17
+  /odom: 62
+  /tf: 62
+  /unilidar/cloud: 26
+  /unilidar/imu: 679

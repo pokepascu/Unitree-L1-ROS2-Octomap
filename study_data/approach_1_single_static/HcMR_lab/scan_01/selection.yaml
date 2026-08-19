@@ -1,0 +1,20 @@
+approach: approach_1_single_static
+environment: HcMR_lab
+scan: scan_01
+source: HcMR_lab
+start: 1786133723637021696
+end: 1786133738705244672
+pose:
+- 9.251
+- -0.595
+- 0.0
+note: Longest strict stationary interval available in the HcMR continuous bag; shorter
+  than the ~30 s target.
+duration_s: 15.068222976
+message_count: 3774
+topic_counts:
+  /cmd_vel: 4
+  /odom: 301
+  /tf: 301
+  /unilidar/cloud: 115
+  /unilidar/imu: 3053

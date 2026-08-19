@@ -1,0 +1,9 @@
+approach,environment,scan,source,start_ns,end_ns,duration_s,pose_x_m,pose_y_m,pose_z_m,message_count,note
+approach_1_single_static,HcMR_lab,scan_01,HcMR_lab,1786133723637021696,1786133738705244672,15.068222976,9.251,-0.595,0.0,3774,Longest strict stationary interval available in the HcMR continuous bag; shorter than the ~30 s target.
+approach_1_single_static,ISR_5th_floor,scan_01,ISR_5th_floor_run_1,1786134757712538368,1786134793011322368,35.298784,1.862,-1.07,0.0,8892,Strict stationary interval longer than the ~30 s target.
+approach_2_three_static_icp,HcMR_lab,scan_01,HcMR_lab,1786133698660790784,1786133712355343616,13.694552832,7.072,-1.158,0.0,3444,Strict stationary interval.
+approach_2_three_static_icp,HcMR_lab,scan_02,HcMR_lab,1786133723637021696,1786133738705244672,15.068222976,9.251,-0.595,0.0,3774,Strict stationary interval.
+approach_2_three_static_icp,HcMR_lab,scan_03,HcMR_lab,1786133755547356928,1786133762945741568,7.39838464,11.806,-0.188,0.0,1873,Strict stationary interval; short but spatially close enough to favour cloud overlap for ICP.
+approach_2_three_static_icp,ISR_5th_floor,scan_01,ISR_5th_floor_run_1,1786134757712538368,1786134793011322368,35.298784,1.862,-1.07,0.0,8892,Strict stationary interval >30 s.
+approach_2_three_static_icp,ISR_5th_floor,scan_02,ISR_5th_floor_run_1,1786134801736246528,1786134805059976704,3.323730176,2.307,-3.125,0.0,846,"Strict stationary interval; only ~3.3 s, retained because it is a nearby overlapping viewpoint."
+approach_2_three_static_icp,ISR_5th_floor,scan_03,ISR_5th_floor_run_1,1786134817986674688,1786134821518245120,3.531570432,1.949,-5.399,0.0,897,"Strict stationary interval; only ~3.5 s, retained because it is a nearby overlapping viewpoint."

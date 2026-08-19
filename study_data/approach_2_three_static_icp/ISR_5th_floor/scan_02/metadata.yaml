@@ -1,0 +1,70 @@
+rosbag2_bagfile_information:
+  version: 5
+  storage_identifier: mcap
+  duration:
+    nanoseconds: 3321413696
+  starting_time:
+    nanoseconds_since_epoch: 1786134801738562906
+  message_count: 846
+  topics_with_message_count:
+  - topic_metadata:
+      name: /cmd_vel
+      type: geometry_msgs/msg/Twist
+      serialization_format: cdr
+      offered_qos_profiles: "- history: 1\n  depth: 100\n  reliability: 1\n  durability:\
+        \ 2\n  deadline:\n    sec: 9223372036\n    nsec: 854775807\n  lifespan:\n\
+        \    sec: 9223372036\n    nsec: 854775807\n  liveliness: 1\n  liveliness_lease_duration:\n\
+        \    sec: 9223372036\n    nsec: 854775807\n  avoid_ros_namespace_conventions:\
+        \ false"
+    message_count: 17
+  - topic_metadata:
+      name: /unilidar/imu
+      type: sensor_msgs/msg/Imu
+      serialization_format: cdr
+      offered_qos_profiles: "- history: 1\n  depth: 10\n  reliability: 1\n  durability:\
+        \ 2\n  deadline:\n    sec: 9223372036\n    nsec: 854775807\n  lifespan:\n\
+        \    sec: 9223372036\n    nsec: 854775807\n  liveliness: 1\n  liveliness_lease_duration:\n\
+        \    sec: 9223372036\n    nsec: 854775807\n  avoid_ros_namespace_conventions:\
+        \ false"
+    message_count: 679
+  - topic_metadata:
+      name: /odom
+      type: nav_msgs/msg/Odometry
+      serialization_format: cdr
+      offered_qos_profiles: "- history: 1\n  depth: 100\n  reliability: 1\n  durability:\
+        \ 2\n  deadline:\n    sec: 9223372036\n    nsec: 854775807\n  lifespan:\n\
+        \    sec: 9223372036\n    nsec: 854775807\n  liveliness: 1\n  liveliness_lease_duration:\n\
+        \    sec: 9223372036\n    nsec: 854775807\n  avoid_ros_namespace_conventions:\
+        \ false"
+    message_count: 62
+  - topic_metadata:
+      name: /tf
+      type: tf2_msgs/msg/TFMessage
+      serialization_format: cdr
+      offered_qos_profiles: "- history: 1\n  depth: 100\n  reliability: 1\n  durability:\
+        \ 2\n  deadline:\n    sec: 9223372036\n    nsec: 854775807\n  lifespan:\n\
+        \    sec: 9223372036\n    nsec: 854775807\n  liveliness: 1\n  liveliness_lease_duration:\n\
+        \    sec: 9223372036\n    nsec: 854775807\n  avoid_ros_namespace_conventions:\
+        \ false"
+    message_count: 62
+  - topic_metadata:
+      name: /unilidar/cloud
+      type: sensor_msgs/msg/PointCloud2
+      serialization_format: cdr
+      offered_qos_profiles: "- history: 1\n  depth: 10\n  reliability: 1\n  durability:\
+        \ 2\n  deadline:\n    sec: 9223372036\n    nsec: 854775807\n  lifespan:\n\
+        \    sec: 9223372036\n    nsec: 854775807\n  liveliness: 1\n  liveliness_lease_duration:\n\
+        \    sec: 9223372036\n    nsec: 854775807\n  avoid_ros_namespace_conventions:\
+        \ false"
+    message_count: 26
+  compression_format: ''
+  compression_mode: ''
+  relative_file_paths:
+  - static_segment.mcap
+  files:
+  - path: static_segment.mcap
+    starting_time:
+      nanoseconds_since_epoch: 1786134801738562906
+    duration:
+      nanoseconds: 3321413696
+    message_count: 846
