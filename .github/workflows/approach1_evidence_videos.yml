@@ -1,18 +1,10 @@
 name: Approach 1 evidence videos
 
 on:
-  push:
-    branches: [analysis/approach-1-static]
-    paths:
-      - 'tools/approach_1/generate_evidence_videos.py'
-      - 'config/approach_1/**'
-      - '.github/workflows/approach1_evidence_videos.yml'
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: approach1-evidence-${{ github.event.pull_request.number || github.ref }}
+  group: approach1-evidence-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -20,7 +12,6 @@ permissions:
 
 jobs:
   evidence:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
@@ -28,7 +19,6 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Install dependencies
         run: |
@@ -57,7 +47,7 @@ jobs:
           cat > results/approach_1/evidence/README.md <<'EOF'
           # Visual verification evidence - Approach 1
 
-          This directory is the visual audit trail for the single-station Unitree L1 analysis. Files are derived from verified static MCAP subsets; source bags remain unchanged.
+          This directory is the secondary Python/Open3D visual audit trail for the single-station Unitree L1 analysis. Primary visual evidence is captured in RViz2 by the dedicated RViz/OctoMap workflows. Files are derived from verified static MCAP subsets; source bags remain unchanged.
 
           | Video | Verification purpose | Limitation |
           |---|---|---|
@@ -79,7 +69,6 @@ jobs:
           rm -f results/approach_1/HcMR_lab/conservative_cleaned_rotation.mp4 results/approach_1/ISR_5th_floor/conservative_cleaned_rotation.mp4 || true
 
       - name: Commit videos and evidence documentation
-        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
