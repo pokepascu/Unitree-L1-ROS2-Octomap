@@ -11,22 +11,38 @@ Visualization Manager:
       Radius: 0.025
       Reference Frame: unilidar_lidar
       Value: true
-    - Class: rviz_default_plugins/MarkerArray
+    - Alpha: 1
+      Axis: Z
+      Class: rviz_default_plugins/PointCloud2
+      Color Transformer: AxisColor
+      Decay Time: 120
       Enabled: true
-      Name: Occupied OctoMap Voxels
-      Namespaces: {}
-      Queue Size: 100
-      Topic: {Depth: 1, Durability Policy: Transient Local, History Policy: Keep Last, Reliability Policy: Reliable, Value: /occupied_cells_vis_array}
+      Name: Accumulated Unitree L1 PointCloud2
+      Position Transformer: XYZ
+      Size (Pixels): 4
+      Size (m): 0.035
+      Style: Points
+      Topic:
+        Depth: 50
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /unilidar/cloud
+      Use Fixed Frame: true
+      Use rainbow: true
       Value: true
   Enabled: true
-  Global Options: {Background Color: 15; 15; 18, Fixed Frame: unilidar_lidar, Frame Rate: 30}
+  Global Options:
+    Background Color: 15; 15; 18
+    Fixed Frame: unilidar_lidar
+    Frame Rate: 30
   Name: root
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
       Distance: 26
       Focal Point: {X: 0, Y: 0, Z: 0.8}
-      Name: Fitted side evidence
+      Name: Evidence side fitted
       Pitch: 0.08
       Target Frame: unilidar_lidar
       Value: Orbit (rviz_default_plugins)
