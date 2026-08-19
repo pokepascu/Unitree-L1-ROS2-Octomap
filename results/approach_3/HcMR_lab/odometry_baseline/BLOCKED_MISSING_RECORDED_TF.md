@@ -1,3 +1,9 @@
-# Odometry + LiDAR metric fusion not generated
+# Odometry + LiDAR metric fusion — rotation calibration pending
 
-The recorded TF graph does not provide a complete `odom -> ... -> unilidar_lidar` transform chain. The project confirms the LiDAR translation but does not explicitly establish the missing rotation. A metric fused cloud or OctoMap would therefore require inventing an extrinsic rotation, which this pipeline deliberately refuses to do. See `../odometry/tf_audit.json` for the recorded evidence.
+The project constraint is now explicit: `base_link -> unilidar_lidar` translation is exactly `(0, 0, 0) m`.
+
+The recorded TF graph does not contain the robot/LiDAR rotation, so a fused metric cloud must not assume an arbitrary orientation. The remaining extrinsic unknown is **rotation only**.
+
+The repository now includes a zero-translation hand-eye calibration pipeline that estimates this rotation independently from recorded robot odometry and KISS-ICP relative motions on HcMR, ISR run 1 and ISR run 2, and accepts it only if the three estimates are physically consistent.
+
+If that cross-run calibration gate fails, valid resolutions are: recover/measure the mounting rotation, explicitly confirm aligned robot/LiDAR axes if physically true, or record a dedicated calibration trajectory. Translation is not a blocker.
