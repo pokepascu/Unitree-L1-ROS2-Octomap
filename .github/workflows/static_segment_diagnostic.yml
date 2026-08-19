@@ -1,0 +1,76 @@
+name: Strict static segment diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: python3 -m pip install mcap mcap-ros2-support numpy requests pyyaml zstandard lz4
+      - name: Retrieve diagnostic script
+        run: |
+          git fetch origin automation/nas-ingest:refs/remotes/origin/automation/nas-ingest
+          git show origin/automation/nas-ingest:tools/diagnostics/find_static_segments.py > /tmp/find_static_segments.py
+      - name: Download exact NAS data
+        run: |
+          python3 - <<'PY'
+          import json,re,requests
+          from pathlib import Path
+          from urllib.parse import quote
+          SHARE='https://nas-greenbotics.isr.uc.pt/drive/d/s/19Nbg4F76IZ5qEWUbGyWhFfmqULZf0kO/lzGW7jJopGGo_ZGmhFpz4dQizFZiahPs-P7_gYpHyaA0'
+          OUT=Path('/tmp/nas_download')
+          base,perm,sharing=re.match(r'^(https?://[^/]+)/drive/d/s/([^/]+)/([^/?]+)',SHARE).groups()
+          s=requests.Session(); r=s.get(SHARE,timeout=60); r.raise_for_status()
+          token=[c.value for c in s.cookies if c.name.startswith('drive-sharing-')][0]
+          api=(f'{base}/drive/webapi/entry.cgi?api=SYNO.SynologyDrive.Shard&version=1&method=getjs' f'&permanent_link={quote(json.dumps(perm))}&sharing_link={quote(json.dumps(sharing))}')
+          js=s.get(api,timeout=60).text
+          marker='getDriveFile=function(){return '; p=js.find(marker)
+          if p<0: marker='window.getDriveFile=function(){return '; p=js.find(marker)
+          start=p+len(marker); depth=0; ins=False; esc=False; end=None
+          for i,ch in enumerate(js[start:],start):
+              if ins:
+                  if esc: esc=False
+                  elif ch=='\\': esc=True
+                  elif ch=='"': ins=False
+                  continue
+              if ch=='"': ins=True
+              elif ch=='{': depth+=1
+              elif ch=='}':
+                  depth-=1
+                  if depth==0: end=i+1; break
+          root=json.loads(js[start:end]); endpoint=f'{base}/drive/webapi/entry.cgi'
+          def listdir(fid):
+              params={'api':'SYNO.SynologyDrive.Files','method':'list','version':'2','path':f'id:{fid}','offset':0,'limit':1000,'sharing_token':json.dumps(token)}
+              obj=s.get(endpoint,params=params,timeout=60).json(); return (obj.get('data') or {}).get('items') or []
+          files=[]
+          def walk(item,prefix=Path()):
+              rel=prefix/item['name']
+              if item.get('type')=='dir' or item.get('content_type')=='dir':
+                  for c in listdir(item['file_id']): walk(c,rel)
+              else: files.append((rel,item))
+          for c in listdir(root['file_id']): walk(c)
+          wanted=[x for x in files if x[0].suffix.lower()=='.mcap' and x[0].parts and x[0].parts[0].startswith('rosbag2_2026_08_07-21_')]
+          for rel,item in wanted:
+              dst=OUT/rel; dst.parent.mkdir(parents=True,exist_ok=True)
+              url=f"{base}/drive/d/s/{perm}/webapi/entry.cgi/{quote(item['name'])}"
+              params={'api':'SYNO.SynologyDrive.Files','method':'download','version':'2','download_type':json.dumps('download'),'files':json.dumps([f"id:{item['file_id']}"]),'force_download':'true','json_error':'true','sharing_token':json.dumps(token)}
+              with s.get(url,params=params,stream=True,timeout=(60,300)) as rr:
+                  rr.raise_for_status();
+                  with dst.open('wb') as f:
+                      for chunk in rr.iter_content(1024*1024):
+                          if chunk: f.write(chunk)
+          PY
+      - name: Detect strict stationary intervals
+        run: |
+          python3 /tmp/find_static_segments.py \
+            /tmp/nas_download/rosbag2_2026_08_07-21_13_45/rosbag2_2026_08_07-21_13_45_0.mcap \
+            /tmp/nas_download/rosbag2_2026_08_07-21_31_58/rosbag2_2026_08_07-21_31_58_0.mcap \
+            /tmp/nas_download/rosbag2_2026_08_07-21_48_31/rosbag2_2026_08_07-21_48_31_0.mcap
