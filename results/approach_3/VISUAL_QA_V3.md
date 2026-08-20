@@ -87,9 +87,9 @@ The OctoMap MarkerArray is blue in these captures. The QA therefore measures blu
 
 ### top
 
-- blue OctoMap viewport fraction: `0.007%`
-- blue bbox coverage XY: `47.6% x 22.0%`
-- blue centroid normalized XY: `(0.579, 0.392)`
+- blue OctoMap viewport fraction: `0.004%`
+- blue bbox coverage XY: `46.7% x 19.8%`
+- blue centroid normalized XY: `(0.546, 0.404)`
 - blue components >=20 px: `0`
 - visibility gate: `FAIL`
 
@@ -107,8 +107,8 @@ The OctoMap MarkerArray is blue in these captures. The QA therefore measures blu
 
 
 
-                                                .        .
-                                          :: -.         .
+                                                .
+                                          :. ..         .
                                  ..
 
 
@@ -146,9 +146,9 @@ The OctoMap MarkerArray is blue in these captures. The QA therefore measures blu
 
 ### isometric
 
-- blue OctoMap viewport fraction: `0.019%`
+- blue OctoMap viewport fraction: `0.016%`
 - blue bbox coverage XY: `34.7% x 22.7%`
-- blue centroid normalized XY: `(0.191, 0.639)`
+- blue centroid normalized XY: `(0.197, 0.633)`
 - blue components >=20 px: `0`
 - visibility gate: `FAIL`
 
