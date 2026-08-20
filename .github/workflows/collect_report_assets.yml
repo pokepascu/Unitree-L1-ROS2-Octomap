@@ -4,6 +4,9 @@ on:
   push:
     branches: [analysis/approach-1-static]
     paths: ['.github/workflows/collect_report_assets.yml']
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/collect_report_assets.yml']
   workflow_dispatch:
 
 permissions:
@@ -34,7 +37,6 @@ jobs:
           cp mapping_data/02_approach_2_three_static_icp/evidence/HcMR_lab/octomap/03_final_top.png report_assets/A2/octomap_top.png
           cp mapping_data/03_approach_3_mobile_lidar_odometry/evidence/HcMR_lab/odometry_lidar_fusion/02_final_isometric.png report_assets/A3/octomap_isometric.png
           cp mapping_data/03_approach_3_mobile_lidar_odometry/evidence/HcMR_lab/odometry_lidar_fusion/03_final_top.png report_assets/A3/octomap_top.png
-          cp mapping_data/03_approach_3_mobile_lidar_odometry/evidence/HcMR_lab/odometry/raw_lidar/02_mobile_raw.png report_assets/A3/raw_mobile_lidar.png 2>/dev/null || true
           find report_assets -type f -maxdepth 3 -print -exec file {} \;
       - uses: actions/upload-artifact@v4
         with:
