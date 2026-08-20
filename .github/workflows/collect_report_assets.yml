@@ -35,6 +35,7 @@ jobs:
           cp mapping_data/02_approach_2_three_static_icp/evidence/HcMR_lab/merged_cloud/02_merged_top.png report_assets/A2/pointcloud_top.png
           cp mapping_data/02_approach_2_three_static_icp/evidence/HcMR_lab/octomap/02_final_isometric.png report_assets/A2/octomap_isometric.png
           cp mapping_data/02_approach_2_three_static_icp/evidence/HcMR_lab/octomap/03_final_top.png report_assets/A2/octomap_top.png
+          cp mapping_data/03_approach_3_mobile_lidar_odometry/evidence/HcMR_lab/raw_lidar/02_raw_instantaneous_wide.png report_assets/A3/pointcloud_instantaneous.png
           cp mapping_data/03_approach_3_mobile_lidar_odometry/evidence/HcMR_lab/odometry_lidar_fusion/02_final_isometric.png report_assets/A3/octomap_isometric.png
           cp mapping_data/03_approach_3_mobile_lidar_odometry/evidence/HcMR_lab/odometry_lidar_fusion/03_final_top.png report_assets/A3/octomap_top.png
           find report_assets -type f -maxdepth 3 -print -exec file {} \;
