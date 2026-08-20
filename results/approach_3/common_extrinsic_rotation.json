@@ -50,17 +50,17 @@
         [
           0.3927558990798341,
           0.9196400112068829,
-          0.00224800475868342
+          0.0022480047586835297
         ],
         [
-          0.0076814463493105195,
-          -0.005724886803053802,
+          0.007681446349310511,
+          -0.005724886803053825,
           0.9999541094735673
         ]
       ],
       "rotation_quaternion_xyzw_base_from_lidar": [
-        -0.0020345352642579147,
-        -0.004336580389532056,
+        -0.0020345352642579485,
+        -0.004336580389532054,
         0.20043915551313057,
         0.9796944419940162
       ],
@@ -71,9 +71,9 @@
         "translation_motion_pairs": 2863,
         "rotation_motion_pairs": 2514,
         "combined_vectors_kept": 2961,
-        "observability_singular_ratio": 0.003755015168304633,
+        "observability_singular_ratio": 0.0037550151683046354,
         "translation_direction_error_deg_median": 31.56612324541166,
-        "translation_direction_error_deg_p90": 123.00298749972924,
+        "translation_direction_error_deg_p90": 123.00298749972923,
         "translation_rmse_m": 0.4146213096018442,
         "translation_normalized_rmse": 1.637319951907287,
         "translation_scale_ratio_median_odom_over_kiss": 0.6927603982259714,
@@ -86,24 +86,24 @@
       "canonical_fusion_allowed": false,
       "rotation_matrix_base_from_lidar": [
         [
-          0.9395997242948795,
-          -0.342236458675129,
-          -0.0051540720302536225
+          0.9395997242948799,
+          -0.3422364586751292,
+          -0.005154072030253418
         ],
         [
-          0.3422399788398591,
-          0.939612554564499,
-          -0.0002102105329946938
+          0.3422399788398592,
+          0.9396125545644993,
+          -0.0002102105329945512
         ],
         [
-          0.004914772495144151,
-          -0.0015664157437276986,
-          0.9999866955880155
+          0.00491477249514404,
+          -0.0015664157437278049,
+          0.9999866955880157
         ]
       ],
       "rotation_quaternion_xyzw_base_from_lidar": [
-        -0.0003442899811109088,
-        -0.0025561045364102678,
+        -0.0003442899811109718,
+        -0.002556104536410187,
         0.1737630690974327,
         0.9847841101540219
       ],
@@ -114,14 +114,14 @@
         "translation_motion_pairs": 15703,
         "rotation_motion_pairs": 7568,
         "combined_vectors_kept": 23271,
-        "observability_singular_ratio": 0.0022626485887138788,
+        "observability_singular_ratio": 0.0022626485887138827,
         "translation_direction_error_deg_median": 63.72975816658511,
-        "translation_direction_error_deg_p90": 150.06603560773902,
-        "translation_rmse_m": 3.094101791515967,
-        "translation_normalized_rmse": 10.772933307497011,
+        "translation_direction_error_deg_p90": 150.066035607739,
+        "translation_rmse_m": 3.094101791515969,
+        "translation_normalized_rmse": 10.772933307497018,
         "translation_scale_ratio_median_odom_over_kiss": 0.2694123559036401,
-        "rotation_conjugacy_error_deg_median": 5.681022464237719,
-        "rotation_conjugacy_error_deg_p90": 27.039026068295538
+        "rotation_conjugacy_error_deg_median": 5.681022464237141,
+        "rotation_conjugacy_error_deg_p90": 27.039026068295428
       }
     },
     "ISR_5th_floor_run_2": {
@@ -130,24 +130,24 @@
       "rotation_matrix_base_from_lidar": [
         [
           0.9071087075643961,
-          -0.42089411295113527,
-          -0.0013922442055839417
+          -0.4208941129511353,
+          -0.0013922442055839426
         ],
         [
-          0.4208723686824298,
-          0.9070872780092554,
-          -0.0076889110672389935
+          0.42087236868242983,
+          0.9070872780092556,
+          -0.007688911067238885
         ],
         [
-          0.004499104409973028,
-          0.006388721064192256,
+          0.004499104409973043,
+          0.006388721064192284,
           0.9999694706853164
         ]
       ],
       "rotation_quaternion_xyzw_base_from_lidar": [
-        0.0036041250610836287,
-        -0.001508290385106865,
-        0.2155072418224413,
+        0.0036041250610836075,
+        -0.0015082903851068687,
+        0.21550724182244127,
         0.9764944260285064
       ],
       "metrics": {
@@ -157,14 +157,14 @@
         "translation_motion_pairs": 12814,
         "rotation_motion_pairs": 5817,
         "combined_vectors_kept": 18631,
-        "observability_singular_ratio": 0.004338404925725392,
-        "translation_direction_error_deg_median": 40.58906632032922,
-        "translation_direction_error_deg_p90": 140.00441032307606,
+        "observability_singular_ratio": 0.004338404925725385,
+        "translation_direction_error_deg_median": 40.58906632032923,
+        "translation_direction_error_deg_p90": 140.0044103230761,
         "translation_rmse_m": 1.3775154863853478,
         "translation_normalized_rmse": 4.812299491419583,
         "translation_scale_ratio_median_odom_over_kiss": 0.5117222640789978,
         "rotation_conjugacy_error_deg_median": 3.248275134522576,
-        "rotation_conjugacy_error_deg_p90": 11.617022235086216
+        "rotation_conjugacy_error_deg_p90": 11.617022235086154
       }
     }
   },
