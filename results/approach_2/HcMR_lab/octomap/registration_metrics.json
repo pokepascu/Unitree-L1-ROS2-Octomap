@@ -166,17 +166,6 @@
         "translation_norm_error_m": 4.440892098500626e-16
       },
       {
-        "method": "FPFH_FGR",
-        "fitness": 0.9179111111111111,
-        "rmse_m": 0.07907372202332132,
-        "p90_m": 0.12343846920290838,
-        "correspondences": 41306,
-        "score": 0.7597636670644685,
-        "translation_norm_m": 2.2505577086580115,
-        "expected_translation_norm_m": 2.250557708658011,
-        "translation_norm_error_m": 4.440892098500626e-16
-      },
-      {
         "method": "yaw_030_fixed_norm",
         "fitness": 0.9176888888888889,
         "rmse_m": 0.07902161231633759,
@@ -186,6 +175,17 @@
         "translation_norm_m": 2.250557708658011,
         "expected_translation_norm_m": 2.250557708658011,
         "translation_norm_error_m": 0.0
+      },
+      {
+        "method": "FPFH_FGR",
+        "fitness": 0.918,
+        "rmse_m": 0.07919297952744216,
+        "p90_m": 0.12361482493006844,
+        "correspondences": 41310,
+        "score": 0.7596140409451158,
+        "translation_norm_m": 2.2505577086580106,
+        "expected_translation_norm_m": 2.250557708658011,
+        "translation_norm_error_m": 4.440892098500626e-16
       }
     ],
     "scan03_to_scan02_candidates": [
