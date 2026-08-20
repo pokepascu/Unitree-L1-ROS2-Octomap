@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   group: approach3-fixed-23deg-fusion
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   fuse_three_mobile_runs:
