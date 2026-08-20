@@ -38,8 +38,8 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 70
-      Focal Point: {X: 0, Y: 0, Z: 0.5}
+      Distance: 92.293
+      Focal Point: {X: 4.514650, Y: -76.819679, Z: 0.5}
       Name: Fused OctoMap isometric
       Pitch: 0.70
       Target Frame: odom

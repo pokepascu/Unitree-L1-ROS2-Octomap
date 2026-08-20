@@ -1,0 +1,24 @@
+{
+  "method": "trajectory_bbox_center_plus_sensor_range_margin",
+  "trajectory_bounds_xy_m": {
+    "xmin": 0.0,
+    "xmax": 16.83314093447086,
+    "ymin": -3.039699746739007,
+    "ymax": 0.03728467381056712
+  },
+  "trajectory_center_xy_m": [
+    8.41657046723543,
+    -1.50120753646422
+  ],
+  "trajectory_span_xy_m": [
+    16.83314093447086,
+    3.0769844205495738
+  ],
+  "sensor_range_margin_m_each_side": 15.0,
+  "estimated_map_span_xy_m": [
+    46.83314093447086,
+    33.07698442054957
+  ],
+  "rviz_orbit_distance_m": 39.030841616248495,
+  "focal_z_m": 0.5
+}
