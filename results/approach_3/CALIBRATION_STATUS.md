@@ -1,3 +1,5 @@
-# Approach 3 extrinsic calibration status — fusion blocked
+# Approach 3 fixed-mount working extrinsic
 
-Translation `base_link -> unilidar_lidar` is fixed to exactly `(0, 0, 0) m`. The trajectory-derived rotation did not pass the cross-run physical-consistency gate, so odometry + LiDAR fusion remains deliberately blocked. Valid resolutions are: measure/recover the true mounting rotation; confirm explicitly that robot and LiDAR axes are physically aligned if that is true; or record a dedicated calibration trajectory with stronger rotational and translational excitation.
+Translation `base_link -> unilidar_lidar` is fixed to exactly `(0,0,0) m`. The LiDAR is rigidly mounted and a constant `+23.0 deg` yaw (`roll=0`, `pitch=0`) is used for the odometry + LiDAR mapping baseline. This value is user-supported and consistent with the three trajectory-derived estimates near +20 to +25 deg. It is not represented as an independently metrologically measured calibration.
+
+The previous trajectory-derived rotation calibrations remain preserved as diagnostics and remain marked rejected under their original quantitative acceptance criteria.
