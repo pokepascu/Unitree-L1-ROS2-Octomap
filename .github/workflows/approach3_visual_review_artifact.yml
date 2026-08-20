@@ -1,4 +1,4 @@
-name: Approach 3 RViz visual QA
+name: Approach 3 RViz trajectory-fitted visual QA
 
 on:
   push:
@@ -15,123 +15,135 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  review_rviz_screenshots:
+  refit_and_review:
     runs-on: ubuntu-22.04
+    timeout-minutes: 45
     steps:
-      - name: Checkout current branch head
+      - name: Checkout branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           lfs: false
 
-      - name: Refined pixel analysis of all nine RViz screenshots
+      - name: Install lightweight QA dependencies and pull final maps
         shell: bash
         run: |
           set -euxo pipefail
           python3 -m pip install --quiet pillow numpy scipy
-          python3 - <<'PY'
-          from pathlib import Path
-          import numpy as np
-          from PIL import Image
-          from scipy import ndimage
+          git lfs install
+          git lfs pull --include='results/approach_3/*/odometry_lidar_fusion/map.bt'
+          for RUN in HcMR_lab ISR_5th_floor_run_1 ISR_5th_floor_run_2; do
+            test $(stat -c%s "results/approach_3/$RUN/odometry_lidar_fusion/map.bt") -gt 1000
+          done
 
-          runs=["HcMR_lab","ISR_5th_floor_run_1","ISR_5th_floor_run_2"]
-          views=[("isometric","02_final_isometric.png"),("top","03_final_top.png"),("side","04_final_side.png")]
-          chars=" .:-=+*#%@"
-          report=[
-              "# Approach 3 RViz visual QA — refined v2","",
-              "This diagnostic operates on the actual RViz PNG evidence and does not replace it.","",
-              "The v1 detector was intentionally superseded because its corner-derived background estimate confused static RViz viewport content with mapped geometry. v2 uses the modal RGB color, exact color-frequency statistics, chromatic masks and inter-image differences.","",
-          ]
-          top_arrays={}
+      - name: Prepare trajectory-fitted RViz configs
+        shell: bash
+        run: |
+          set -euxo pipefail
+          for RUN in HcMR_lab ISR_5th_floor_run_1 ISR_5th_floor_run_2; do
+            python3 tools/approach_3/refit_and_qa_rviz.py prepare \
+              --odom "results/approach_3/$RUN/odometry/odometry_trajectory.csv" \
+              --out "results/approach_3/$RUN/odometry_lidar_fusion" \
+              --sensor-range 15.0
+          done
 
-          def ascii_mask(mask,h=36,w=80,gain=8.0):
-              H,W=mask.shape; yy=np.linspace(0,H,h+1,dtype=int); xx=np.linspace(0,W,w+1,dtype=int)
-              out=[]
-              for i in range(h):
-                  row=[]
-                  for j in range(w):
-                      b=mask[yy[i]:yy[i+1],xx[j]:xx[j+1]]
-                      v=float(b.mean()) if b.size else 0.0
-                      idx=min(len(chars)-1,int(round(v*(len(chars)-1)*gain)))
-                      row.append(chars[idx])
-                  out.append(''.join(row).rstrip())
-              return '\n'.join(out)
+      - name: Build reproducible ROS 2 RViz image
+        shell: bash
+        run: |
+          set -euxo pipefail
+          docker build -t unitree-l1-evidence -f docker/Dockerfile .
 
-          def palette(v,n=8):
-              q=(np.clip(v,0,1)*255).astype(np.uint8).reshape(-1,3)
-              packed=(q[:,0].astype(np.uint32)<<16)|(q[:,1].astype(np.uint32)<<8)|q[:,2].astype(np.uint32)
-              vals,cnt=np.unique(packed,return_counts=True); idx=np.argsort(cnt)[::-1][:n]
-              total=len(packed); out=[]
-              for k in idx:
-                  z=int(vals[k]); rgb=((z>>16)&255,(z>>8)&255,z&255)
-                  out.append((rgb,float(cnt[k]/total)))
-              return out
+      - name: Reopen each saved OctoMap and recapture final views
+        shell: bash
+        run: |
+          set -euxo pipefail
+          capture_run () {
+            RUN="$1"
+            ROOT="results/approach_3/$RUN"
+            OUT="$ROOT/odometry_lidar_fusion"
+            CSV="$ROOT/odometry/odometry_trajectory.csv"
 
-          for run in runs:
-              report += [f"## {run}",""]
-              for view,fn in views:
-                  p=Path("results/approach_3")/run/"odometry_lidar_fusion"/fn
-                  a=np.asarray(Image.open(p).convert("RGB"),dtype=np.uint8)
-                  H,W=a.shape[:2]
-                  x0=min(320,W//5); y0=min(55,H//16); y1=H-35
-                  v=a[y0:y1,x0:W,:]
-                  pal=palette(v,10)
-                  modal=np.array(pal[0][0],dtype=np.int16)
-                  vf=v.astype(np.int16)
-                  dist=np.sqrt(((vf-modal[None,None,:])**2).sum(axis=2))
-                  vmax=v.max(axis=2).astype(np.float32); vmin=v.min(axis=2).astype(np.float32)
-                  sat=(vmax-vmin)/(vmax+1e-6)
-                  chrom=(sat>0.20)&(vmax>55)
-                  chrom=ndimage.binary_opening(chrom,structure=np.ones((2,2)))
-                  nonmodal=dist>35
-                  # Remove low-saturation grid/background-like pixels from geometry proxy.
-                  proxy=nonmodal & ((sat>0.10)|(vmax>150))
-                  proxy=ndimage.binary_opening(proxy,structure=np.ones((2,2)))
-                  chrom_frac=float(chrom.mean()); proxy_frac=float(proxy.mean()); modal_frac=pal[0][1]
-                  if chrom.any():
-                      ys,xs=np.nonzero(chrom); bw=(xs.max()-xs.min()+1)/chrom.shape[1]; bh=(ys.max()-ys.min()+1)/chrom.shape[0]
-                  else: bw=bh=0.0
-                  labels,nc=ndimage.label(chrom); sizes=np.bincount(labels.ravel())[1:] if nc else np.array([],dtype=int)
-                  large=sizes[sizes>=20]
-                  report += [f"### {view}","",f"- image: `{W}x{H}` px",f"- modal viewport RGB: `{tuple(int(x) for x in modal)}` covering `{100*modal_frac:.2f}%`",f"- chromatic fraction: `{100*chrom_frac:.3f}%`",f"- non-background geometry proxy: `{100*proxy_frac:.3f}%`",f"- chromatic bbox coverage: `{100*bw:.1f}% x {100*bh:.1f}%`",f"- chromatic components >=20 px: `{len(large)}`", "- dominant RGB colors:"]
-                  for rgb,frac in pal: report.append(f"  - `{rgb}`: `{100*frac:.2f}%`")
-                  report.append("")
-                  if view=="top":
-                      top_arrays[run]=v.astype(np.float32)/255.0
-                      report += ["#### Top-view chromatic proxy", "", "```text", ascii_mask(chrom), "```", "", "#### Top-view non-background proxy", "", "```text", ascii_mask(proxy,gain=4.0), "```", ""]
+            docker run -d --rm --name a3view --network host -v "$PWD:/workspace" unitree-l1-evidence sleep infinity
+            cleanup () { docker rm -f a3view >/dev/null 2>&1 || true; }
+            trap cleanup RETURN
+            docker exec -d a3view bash -lc 'Xvfb :99 -screen 0 1600x900x24 -ac >/tmp/xvfb.log 2>&1'
+            sleep 3
+            docker exec -d a3view bash -lc 'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_server_node --ros-args -p octomap_path:=/workspace/'"$OUT"'/map.bt -p frame_id:=odom >/tmp/map.log 2>&1'
+            sleep 5
+            docker exec -d a3view bash -lc 'source /opt/ros/humble/setup.bash; python3 /workspace/tools/approach_3/publish_odometry_path.py --csv /workspace/'"$CSV"' --hold 180 >/tmp/path.log 2>&1'
+            sleep 2
 
-          report += ["## Pairwise top-view image differences","", "Mean absolute RGB differences after the identical viewport crop:",""]
-          for i,a in enumerate(runs):
-              for b in runs[i+1:]:
-                  A=top_arrays[a]; B=top_arrays[b]
-                  mad=float(np.mean(np.abs(A-B)))
-                  report.append(f"- `{a}` vs `{b}`: `{mad:.5f}` normalized RGB MAD")
-          report += ["", "## Interpretation guardrail", "", "Very low chromatic content is flagged for manual investigation but is not automatically called an empty map, because OctoMap/RViz marker colors can be low-saturation depending on the display. The modal palette, non-background proxy and inter-image differences must be considered together.", ""]
-          out=Path("results/approach_3/VISUAL_QA_V2.md"); out.write_text('\n'.join(report),encoding='utf-8'); print(out.read_text())
-          PY
+            capture_view () {
+              VIEW="$1"; PNG="$2"
+              docker exec a3view bash -lc 'pkill -x rviz2 || true'; sleep 2
+              docker exec -d a3view bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_'"$VIEW"'.rviz >/tmp/rviz_'"$VIEW"'.log 2>&1'
+              sleep 7
+              docker exec a3view bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$OUT"'/'"$PNG"' >/dev/null 2>&1'
+            }
 
-      - name: Upload actual screenshots and refined report
+            capture_view isometric 02_final_isometric.png
+            capture_view top 03_final_top.png
+            capture_view side 04_final_side.png
+
+            docker exec a3view bash -lc 'pkill -x rviz2 || true'; sleep 2
+            docker exec -d a3view bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_isometric.rviz >/tmp/rviz_orbit.log 2>&1'
+            sleep 7
+            docker exec -d a3view bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t 12 -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p /workspace/'"$OUT"'/05_3d_orbit_rviz.mp4 >/tmp/orbit.log 2>&1'
+            sleep 1
+            docker exec a3view bash -lc 'export DISPLAY=:99; WIN=$(xdotool search --onlyvisible --name RViz | head -1 || true); echo RVIZ_WINDOW=$WIN; if [ -n "$WIN" ]; then xdotool windowfocus --sync "$WIN" || true; xdotool mousemove --window "$WIN" 800 450; for j in $(seq 1 24); do xdotool mousedown 1; xdotool mousemove_relative --sync 22 0; xdotool mouseup 1; sleep 0.35; done; fi; sleep 3'
+            docker exec a3view bash -lc 'pkill -INT -x ffmpeg || true; sleep 2; ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,duration -of default=noprint_wrappers=1 /workspace/'"$OUT"'/05_3d_orbit_rviz.mp4'
+            test $(stat -c%s "$OUT/05_3d_orbit_rviz.mp4") -gt 30000
+            docker exec a3view bash -lc 'tail -40 /tmp/map.log || true; tail -40 /tmp/rviz_top.log || true'
+            docker rm -f a3view
+            trap - RETURN
+          }
+
+          capture_run HcMR_lab
+          capture_run ISR_5th_floor_run_1
+          capture_run ISR_5th_floor_run_2
+
+      - name: Run final trajectory-fitted visual QA
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 tools/approach_3/refit_and_qa_rviz.py qa \
+            --root results/approach_3 \
+            --report results/approach_3/VISUAL_QA_V3.md
+
+      - name: Upload actual final RViz screenshots and QA
         uses: actions/upload-artifact@v4
         with:
-          name: approach3-fixed23-rviz-visual-qa-v2
+          name: approach3-fixed23-rviz-trajectory-fitted
           path: |
-            results/approach_3/VISUAL_QA_V2.md
-            results/approach_3/HcMR_lab/odometry_lidar_fusion/*.png
-            results/approach_3/ISR_5th_floor_run_1/odometry_lidar_fusion/*.png
-            results/approach_3/ISR_5th_floor_run_2/odometry_lidar_fusion/*.png
+            results/approach_3/VISUAL_QA_V3.md
+            results/approach_3/*/odometry_lidar_fusion/02_final_isometric.png
+            results/approach_3/*/odometry_lidar_fusion/03_final_top.png
+            results/approach_3/*/odometry_lidar_fusion/04_final_side.png
+            results/approach_3/*/odometry_lidar_fusion/05_3d_orbit_rviz.mp4
+            results/approach_3/*/odometry_lidar_fusion/camera_fit.json
           if-no-files-found: error
           retention-days: 7
 
-      - name: Commit refined QA report
+      - name: Commit corrected framing and final QA
         shell: bash
         run: |
           set -euxo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add results/approach_3/VISUAL_QA_V2.md
+          git lfs install
+          git add tools/approach_3/refit_and_qa_rviz.py results/approach_3/VISUAL_QA_V3.md
+          for RUN in HcMR_lab ISR_5th_floor_run_1 ISR_5th_floor_run_2; do
+            git add "results/approach_3/$RUN/odometry_lidar_fusion/02_final_isometric.png" \
+                    "results/approach_3/$RUN/odometry_lidar_fusion/03_final_top.png" \
+                    "results/approach_3/$RUN/odometry_lidar_fusion/04_final_side.png" \
+                    "results/approach_3/$RUN/odometry_lidar_fusion/05_3d_orbit_rviz.mp4" \
+                    "results/approach_3/$RUN/odometry_lidar_fusion/camera_fit.json" \
+                    "results/approach_3/$RUN/odometry_lidar_fusion/octomap_isometric.rviz" \
+                    "results/approach_3/$RUN/odometry_lidar_fusion/octomap_top.rviz" \
+                    "results/approach_3/$RUN/odometry_lidar_fusion/octomap_side.rviz"
+          done
           git diff --cached --quiet && exit 0
-          git commit -m 'Refine visual QA for Approach 3 RViz evidence'
+          git commit -m 'Refit and validate final Approach 3 RViz evidence'
           git fetch origin analysis/approach-1-static
           git rebase origin/analysis/approach-1-static
           git push origin HEAD:analysis/approach-1-static
