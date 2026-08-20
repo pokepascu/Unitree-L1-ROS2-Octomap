@@ -1,0 +1,154 @@
+name: Approach 3 refit final RViz views to trajectory extents
+
+on:
+  push:
+    branches: [analysis/approach-1-static]
+    paths:
+      - '.github/workflows/approach3_refit_rviz_views.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: approach3-refit-rviz
+  cancel-in-progress: true
+
+jobs:
+  refit_views:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: false
+
+      - name: Pull only final OctoMap binary maps
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git lfs install
+          git lfs pull --include='results/approach_3/*/odometry_lidar_fusion/map.bt'
+          for RUN in HcMR_lab ISR_5th_floor_run_1 ISR_5th_floor_run_2; do
+            test $(stat -c%s "results/approach_3/$RUN/odometry_lidar_fusion/map.bt") -gt 1000
+          done
+
+      - name: Build ROS 2 RViz image
+        shell: bash
+        run: |
+          set -euxo pipefail
+          docker build -t unitree-l1-evidence -f docker/Dockerfile .
+
+      - name: Reopen maps and capture trajectory-fitted final views
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          fit_and_capture () {
+            RUN="$1"
+            ROOT="results/approach_3/$RUN"
+            OUT="$ROOT/odometry_lidar_fusion"
+            CSV="$ROOT/odometry/odometry_trajectory.csv"
+
+            read CX CY DIST XR YR <<< "$(python3 - "$CSV" <<'PY'
+          import csv,sys,math
+          xs=[]; ys=[]
+          with open(sys.argv[1],newline='') as f:
+              for r in csv.DictReader(f):
+                  xs.append(float(r['x_m'])); ys.append(float(r['y_m']))
+          xmin,xmax=min(xs),max(xs); ymin,ymax=min(ys),max(ys)
+          cx=(xmin+xmax)/2; cy=(ymin+ymax)/2; xr=xmax-xmin; yr=ymax-ymin
+          # Include up to 15 m mapped sensor range around the robot trajectory and a perspective margin.
+          map_w=xr+30.0; map_h=yr+30.0
+          dist=max(28.0, 1.18*max(map_h, map_w/1.60))
+          print(f'{cx:.6f} {cy:.6f} {dist:.3f} {xr:.3f} {yr:.3f}')
+          PY
+            )"
+            echo "$RUN camera center=($CX,$CY) trajectory_span=($XR,$YR)m distance=$DIST"
+
+            python3 - "$OUT" "$CX" "$CY" "$DIST" "$XR" "$YR" <<'PY'
+          from pathlib import Path
+          import json,re,sys
+          out=Path(sys.argv[1]); cx=float(sys.argv[2]); cy=float(sys.argv[3]); dist=float(sys.argv[4]); xr=float(sys.argv[5]); yr=float(sys.argv[6])
+          src={
+              'isometric':Path('config/rviz/approach3_fused_octomap_isometric.rviz'),
+              'top':Path('config/rviz/approach3_fused_octomap_top.rviz'),
+              'side':Path('config/rviz/approach3_fused_octomap_side.rviz'),
+          }
+          for view,p in src.items():
+              s=p.read_text()
+              s=re.sub(r'Distance: [-+0-9.eE]+',f'Distance: {dist:.3f}',s)
+              s=re.sub(r'Focal Point: \{X: [-+0-9.eE]+, Y: [-+0-9.eE]+, Z: [-+0-9.eE]+\}',f'Focal Point: {{X: {cx:.6f}, Y: {cy:.6f}, Z: 0.5}}',s)
+              (out/f'octomap_{view}.rviz').write_text(s)
+          (out/'camera_fit.json').write_text(json.dumps({
+              'method':'trajectory_bbox_center_plus_15m_sensor_range_margin',
+              'trajectory_center_xy_m':[cx,cy],
+              'trajectory_span_xy_m':[xr,yr],
+              'rviz_orbit_distance_m':dist,
+              'focal_z_m':0.5
+          },indent=2)+'\n')
+          PY
+
+            docker run -d --rm --name a3view --network host -v "$PWD:/workspace" unitree-l1-evidence sleep infinity
+            cleanup () { docker rm -f a3view >/dev/null 2>&1 || true; }
+            trap cleanup RETURN
+            docker exec -d a3view bash -lc 'Xvfb :99 -screen 0 1600x900x24 -ac >/tmp/xvfb.log 2>&1'; sleep 3
+            docker exec -d a3view bash -lc 'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_server_node --ros-args -p octomap_path:=/workspace/'"$OUT"'/map.bt -p frame_id:=odom >/tmp/map.log 2>&1'; sleep 5
+            docker exec -d a3view bash -lc 'source /opt/ros/humble/setup.bash; python3 /workspace/tools/approach_3/publish_odometry_path.py --csv /workspace/'"$CSV"' --hold 180 >/tmp/path.log 2>&1'; sleep 2
+
+            capture_view () {
+              VIEW="$1"; PNG="$2"
+              docker exec a3view bash -lc 'pkill -x rviz2 || true'; sleep 2
+              docker exec -d a3view bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_'"$VIEW"'.rviz >/tmp/rviz_'"$VIEW"'.log 2>&1'; sleep 7
+              docker exec a3view bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$OUT"'/'"$PNG"' >/dev/null 2>&1'
+            }
+            capture_view isometric 02_final_isometric.png
+            capture_view top 03_final_top.png
+            capture_view side 04_final_side.png
+
+            docker exec a3view bash -lc 'pkill -x rviz2 || true'; sleep 2
+            docker exec -d a3view bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_isometric.rviz >/tmp/rviz_orbit.log 2>&1'; sleep 7
+            docker exec -d a3view bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t 12 -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p /workspace/'"$OUT"'/05_3d_orbit_rviz.mp4 >/tmp/orbit.log 2>&1'; sleep 1
+            docker exec a3view bash -lc 'export DISPLAY=:99; WIN=$(xdotool search --onlyvisible --name RViz | head -1 || true); echo RVIZ_WINDOW=$WIN; if [ -n "$WIN" ]; then xdotool windowfocus --sync "$WIN" || true; xdotool mousemove --window "$WIN" 800 450; for j in $(seq 1 24); do xdotool mousedown 1; xdotool mousemove_relative --sync 22 0; xdotool mouseup 1; sleep 0.35; done; fi; sleep 3'; docker exec a3view bash -lc 'pkill -INT -x ffmpeg || true; sleep 2'
+
+            # Stronger final capture validation based on modal white background and blue OctoMap content.
+            python3 - "$OUT" <<'PY'
+          from pathlib import Path
+          import sys
+          import numpy as np
+          from PIL import Image
+          out=Path(sys.argv[1])
+          for fn in ['02_final_isometric.png','03_final_top.png','04_final_side.png']:
+              a=np.asarray(Image.open(out/fn).convert('RGB'))
+              H,W=a.shape[:2]; v=a[55:H-35,320:W]
+              blue=(v[:,:,2]>180)&(v[:,:,0]<80)&(v[:,:,1]<80)
+              frac=float(blue.mean())
+              print(fn,'blue_fraction',frac)
+              if frac < 0.001:
+                  raise SystemExit(f'{fn}: mapped blue OctoMap occupies <0.1% of viewport after trajectory-fit framing')
+          PY
+            docker exec a3view bash -lc 'ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,duration -of default=noprint_wrappers=1 /workspace/'"$OUT"'/05_3d_orbit_rviz.mp4'
+            test $(stat -c%s "$OUT/05_3d_orbit_rviz.mp4") -gt 30000
+            docker rm -f a3view
+            trap - RETURN
+          }
+
+          fit_and_capture HcMR_lab
+          fit_and_capture ISR_5th_floor_run_1
+          fit_and_capture ISR_5th_floor_run_2
+
+      - name: Commit fitted RViz views
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git lfs install
+          git add results/approach_3/*/odometry_lidar_fusion/{02_final_isometric.png,03_final_top.png,04_final_side.png,05_3d_orbit_rviz.mp4,camera_fit.json,octomap_isometric.rviz,octomap_top.rviz,octomap_side.rviz}
+          git diff --cached --quiet && exit 0
+          git commit -m 'Refit Approach 3 RViz views to trajectory extents'
+          git fetch origin analysis/approach-1-static
+          git rebase origin/analysis/approach-1-static
+          git push origin HEAD:analysis/approach-1-static
