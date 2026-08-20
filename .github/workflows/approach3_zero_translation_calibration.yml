@@ -1,0 +1,12 @@
+name: Approach 3 trajectory calibration diagnostic (manual only)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnostic_only:
+    runs-on: ubuntu-22.04
+    steps:
+      - run: |
+          echo 'Manual diagnostic only.'
+          echo 'The project now uses a fixed +23 degree yaw working extrinsic for the mounted LiDAR, while preserving the rejected trajectory-derived estimates as diagnostics.'

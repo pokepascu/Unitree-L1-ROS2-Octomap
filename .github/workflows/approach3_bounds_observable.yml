@@ -1,0 +1,82 @@
+name: Approach 3 observable occupied OctoMap bounds
+
+on:
+  pull_request:
+    types: [synchronize]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: approach3-occupied-bounds
+  cancel-in-progress: true
+
+jobs:
+  measure_bounds:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: false
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Pull only saved OctoMap binaries
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git lfs install
+          git lfs pull --include='results/approach_3/*/odometry_lidar_fusion/map.bt'
+          for RUN in HcMR_lab ISR_5th_floor_run_1 ISR_5th_floor_run_2; do
+            test $(stat -c%s "results/approach_3/$RUN/odometry_lidar_fusion/map.bt") -gt 1000
+          done
+
+      - name: Build ROS 2 image
+        shell: bash
+        run: |
+          set -euxo pipefail
+          docker build -t unitree-l1-evidence -f docker/Dockerfile .
+
+      - name: Measure actual occupied MarkerArray bounds
+        shell: bash
+        run: |
+          set -euxo pipefail
+          measure () {
+            RUN="$1"
+            OUT="results/approach_3/$RUN/odometry_lidar_fusion"
+            chmod -R a+rwX "$OUT"
+            docker run -d --rm --name a3bounds --network host -v "$PWD:/workspace" unitree-l1-evidence sleep infinity
+            cleanup () { docker rm -f a3bounds >/dev/null 2>&1 || true; }
+            trap cleanup RETURN
+            docker exec -d a3bounds bash -lc \
+              'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_server_node --ros-args -p octomap_path:=/workspace/'"$OUT"'/map.bt -p frame_id:=odom >/tmp/map.log 2>&1'
+            sleep 5
+            docker exec a3bounds bash -lc \
+              'source /opt/ros/humble/setup.bash; python3 /workspace/tools/approach_3/measure_octomap_marker_bounds.py --out /workspace/'"$OUT"'/occupied_bounds.json --timeout 15'
+            docker exec a3bounds bash -lc 'tail -60 /tmp/map.log || true'
+            test -s "$OUT/occupied_bounds.json"
+            cat "$OUT/occupied_bounds.json"
+            docker rm -f a3bounds
+            trap - RETURN
+          }
+
+          measure HcMR_lab
+          measure ISR_5th_floor_run_1
+          measure ISR_5th_floor_run_2
+
+      - name: Commit occupied-map extents
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tools/approach_3/measure_octomap_marker_bounds.py \
+                  results/approach_3/*/odometry_lidar_fusion/occupied_bounds.json
+          git diff --cached --quiet && exit 0
+          git commit -m 'Measure actual occupied bounds of Approach 3 OctoMaps'
+          git fetch origin analysis/approach-1-static
+          git rebase origin/analysis/approach-1-static
+          git push origin HEAD:analysis/approach-1-static

@@ -1,0 +1,8 @@
+name: Approach 1 final OctoMap fitted RViz evidence — completed
+on:
+  workflow_dispatch:
+jobs:
+  archived:
+    runs-on: ubuntu-22.04
+    steps:
+      - run: echo 'Completed canonical outputs are already committed. Full reproducible workflow is archived at .github/workflow_archive/approach1_octomap_final_evidence.yml.'

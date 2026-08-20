@@ -1,0 +1,8 @@
+name: Approach 2 complete three-scan ICP RViz evidence — superseded
+on:
+  workflow_dispatch:
+jobs:
+  archived:
+    runs-on: ubuntu-22.04
+    steps:
+      - run: echo 'Superseded by the odometry-displacement-constrained registration pipeline. Full historical workflow is archived at .github/workflow_archive/approach2_complete_evidence.yml.'

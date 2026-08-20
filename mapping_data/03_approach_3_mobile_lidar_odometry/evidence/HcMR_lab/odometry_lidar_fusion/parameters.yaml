@@ -1,0 +1,8 @@
+frame_id: odom
+resolution_m: 0.10
+sensor_model_max_range_m: 15.0
+filter_ground_plane: false
+input_topic: /fused_cloud
+robot_lidar_translation_m: [0.0, 0.0, 0.0]
+robot_lidar_rotation_rpy_deg: [0.0, 0.0, 23.0]
+rotation_status: fixed_mount_working_constraint_user_supported

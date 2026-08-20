@@ -1,0 +1,85 @@
+name: Approach 1 evidence videos
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: approach1-evidence-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  evidence:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python3 -m pip install --upgrade pip
+          python3 -m pip install mcap mcap-ros2-support numpy scipy matplotlib pyyaml open3d
+
+      - name: Rebuild derived clouds needed by evidence generator
+        run: |
+          python3 tools/approach_1/analyze_static_cloud.py --bag study_data/approach_1_single_static/HcMR_lab/scan_01/static_segment.mcap --config config/approach_1/hcmr.yaml --out results/approach_1/HcMR_lab
+          python3 tools/approach_1/analyze_static_cloud.py --bag study_data/approach_1_single_static/ISR_5th_floor/scan_01/static_segment.mcap --config config/approach_1/isr_5th_floor.yaml --out results/approach_1/ISR_5th_floor
+
+      - name: Generate HcMR verification videos
+        run: |
+          python3 tools/approach_1/generate_evidence_videos.py --bag study_data/approach_1_single_static/HcMR_lab/scan_01/static_segment.mcap --config config/approach_1/hcmr.yaml --analysis-dir results/approach_1/HcMR_lab --evidence-dir results/approach_1/evidence/HcMR_lab --label 'HcMR laboratory'
+
+      - name: Generate ISR 5th-floor verification videos
+        run: |
+          python3 tools/approach_1/generate_evidence_videos.py --bag study_data/approach_1_single_static/ISR_5th_floor/scan_01/static_segment.mcap --config config/approach_1/isr_5th_floor.yaml --analysis-dir results/approach_1/ISR_5th_floor --evidence-dir results/approach_1/evidence/ISR_5th_floor --label 'ISR 5th floor'
+
+      - name: Write organized evidence README
+        shell: bash
+        run: |
+          mkdir -p results/approach_1/evidence
+          cat > results/approach_1/evidence/README.md <<'EOF'
+          # Visual verification evidence - Approach 1
+
+          This directory is the secondary Python/Open3D visual audit trail for the single-station Unitree L1 analysis. Primary visual evidence is captured in RViz2 by the dedicated RViz/OctoMap workflows. Files are derived from verified static MCAP subsets; source bags remain unchanged.
+
+          | Video | Verification purpose | Limitation |
+          |---|---|---|
+          | `01_raw_pointcloud_accumulation.mp4` | Decoding, continuity and spatial accumulation of `/unilidar/cloud` | Moving people can leave transient geometry |
+          | `02_conservative_cleaned_rotation.mp4` | 3D inspection after range filtering, 5 cm voxelization, Statistical Outlier Removal and Radius Outlier Removal | Not semantic human removal |
+          | `03_dynamic_foreground_evolution.mp4` | Low-temporal-persistence foreground candidates | Persistent people may look static; candidates are not truth labels |
+          | `04_odometry_stationarity.mp4` | `/odom` trajectory and speed histories versus 0.02 m/s and 0.02 rad/s thresholds | Wheel odometry is not external ground truth |
+
+          HcMR uses 115 LiDAR frames over about 14.87 s. Two people were known to be present, so foreground candidates are kept separate and no automatic person-identification claim is made. ISR 5th floor uses 272 frames over about 35.18 s.
+
+          Numerical evidence is stored beside the images in `metrics.json`, `pointcloud2_schema.json`, and `config_used.yaml`. Occluded surfaces are not hallucinated or filled in.
+          EOF
+
+      - name: Remove large non-video intermediates before repository commit
+        run: |
+          find results/approach_1 -name '*.ply' -delete
+          find results/approach_1 -name '*.npz' -delete
+          rm -rf results/approach_1/HcMR_lab/video_frames results/approach_1/ISR_5th_floor/video_frames || true
+          rm -f results/approach_1/HcMR_lab/conservative_cleaned_rotation.mp4 results/approach_1/ISR_5th_floor/conservative_cleaned_rotation.mp4 || true
+
+      - name: Commit videos and evidence documentation
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git lfs install
+          git add .gitattributes results/approach_1/evidence tools/approach_1/generate_evidence_videos.py .github/workflows/approach1_evidence_videos.yml
+          git diff --cached --quiet || git commit -m 'Add organized visual verification evidence for Approach 1'
+          git push origin HEAD:analysis/approach-1-static
+
+      - name: Upload full evidence artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: approach1-visual-evidence
+          path: results/approach_1/evidence/
+          if-no-files-found: error

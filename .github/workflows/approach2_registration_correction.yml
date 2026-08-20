@@ -1,0 +1,13 @@
+name: Approach 2 odometry-constrained global registration correction (completed)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  completed_notice:
+    runs-on: ubuntu-22.04
+    steps:
+      - run: |
+          echo 'Approach 2 correction is complete for HcMR_lab and ISR_5th_floor.'
+          echo 'The reproducible processing implementation remains in tools/approach_2/ and the generated evidence remains in results/approach_2/.'
+          echo 'This workflow is manual-only to prevent completed evidence from being regenerated during final Approach 3 work.'

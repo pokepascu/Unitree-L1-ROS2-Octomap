@@ -1,0 +1,67 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Axes
+      Enabled: true
+      Length: 0.6
+      Name: reference axes
+      Radius: 0.025
+      Reference Frame: unilidar_lidar
+      Value: true
+    - Alpha: 0.8
+      Class: rviz_default_plugins/PointCloud2
+      Color: 255; 80; 80
+      Color Transformer: FlatColor
+      Decay Time: 120
+      Enabled: true
+      Name: Scan 01 reference
+      Position Transformer: XYZ
+      Size (Pixels): 4
+      Size (m): 0.035
+      Style: Points
+      Topic: {Depth: 20, Durability Policy: Volatile, History Policy: Keep Last, Reliability Policy: Reliable, Value: /scan_01_registered}
+      Value: true
+    - Alpha: 0.8
+      Class: rviz_default_plugins/PointCloud2
+      Color: 80; 255; 100
+      Color Transformer: FlatColor
+      Decay Time: 120
+      Enabled: true
+      Name: Scan 02 ICP
+      Position Transformer: XYZ
+      Size (Pixels): 4
+      Size (m): 0.035
+      Style: Points
+      Topic: {Depth: 20, Durability Policy: Volatile, History Policy: Keep Last, Reliability Policy: Reliable, Value: /scan_02_registered}
+      Value: true
+    - Alpha: 0.8
+      Class: rviz_default_plugins/PointCloud2
+      Color: 80; 140; 255
+      Color Transformer: FlatColor
+      Decay Time: 120
+      Enabled: true
+      Name: Scan 03 ICP
+      Position Transformer: XYZ
+      Size (Pixels): 4
+      Size (m): 0.035
+      Style: Points
+      Topic: {Depth: 20, Durability Policy: Volatile, History Policy: Keep Last, Reliability Policy: Reliable, Value: /scan_03_registered}
+      Value: true
+  Enabled: true
+  Global Options: {Background Color: 15; 15; 18, Fixed Frame: unilidar_lidar, Frame Rate: 30}
+  Name: root
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 28
+      Focal Point: {X: 0, Y: 0, Z: 0.5}
+      Name: Fitted ICP evidence
+      Pitch: 0.62
+      Target Frame: unilidar_lidar
+      Value: Orbit (rviz_default_plugins)
+      Yaw: 0.785
+    Saved: ~
+Window Geometry: {Height: 900, Width: 1600, X: 0, Y: 0}

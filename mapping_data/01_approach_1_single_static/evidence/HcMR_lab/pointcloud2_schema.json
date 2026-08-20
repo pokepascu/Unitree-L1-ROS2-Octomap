@@ -1,0 +1,59 @@
+{
+  "frame_id_values": [
+    "unilidar_lidar"
+  ],
+  "frame_count": 115,
+  "duration_s": 14.873996297,
+  "effective_hz": 7.73161413407067,
+  "width": 2160,
+  "height": 1,
+  "point_step": 32,
+  "row_step": 69120,
+  "is_bigendian": false,
+  "is_dense": true,
+  "fields": [
+    {
+      "name": "x",
+      "offset": 0,
+      "datatype": 7,
+      "count": 1
+    },
+    {
+      "name": "y",
+      "offset": 4,
+      "datatype": 7,
+      "count": 1
+    },
+    {
+      "name": "z",
+      "offset": 8,
+      "datatype": 7,
+      "count": 1
+    },
+    {
+      "name": "intensity",
+      "offset": 16,
+      "datatype": 7,
+      "count": 1
+    },
+    {
+      "name": "ring",
+      "offset": 20,
+      "datatype": 4,
+      "count": 1
+    },
+    {
+      "name": "time",
+      "offset": 24,
+      "datatype": 7,
+      "count": 1
+    }
+  ],
+  "extra_numeric_fields_found": [
+    "intensity",
+    "ring",
+    "time"
+  ],
+  "raw_points_total": 248101,
+  "raw_points_per_frame_median": 2158.0
+}

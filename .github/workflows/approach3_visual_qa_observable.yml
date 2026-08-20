@@ -1,0 +1,12 @@
+name: Approach 3 observable trajectory-fitted RViz QA (manual archive)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  archived_notice:
+    runs-on: ubuntu-22.04
+    steps:
+      - run: |
+          echo 'The trajectory-fitted QA run completed and its evidence is preserved under results/approach_3/.'
+          echo 'Automatic synchronize triggering is disabled while actual OctoMap occupied bounds are measured for final camera fitting.'

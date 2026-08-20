@@ -1,0 +1,20 @@
+# Approach 3 LiDAR/robot extrinsic constraints
+base_frame: base_link
+lidar_frame: unilidar_lidar
+translation_m: [0.0, 0.0, 0.0]
+translation_status: known_project_constraint
+rotation_rpy_deg: [0.0, 0.0, 23.0]
+rotation_quaternion_xyzw: [0.0, 0.0, 0.1993679344171972, 0.9799247046208296]
+rotation_matrix_base_from_lidar:
+  - [0.9205048534524404, -0.3907311284892738, 0.0]
+  - [0.3907311284892738, 0.9205048534524404, 0.0]
+  - [0.0, 0.0, 1.0]
+rotation_status: fixed_mount_working_constraint_user_supported
+rotation_resolution_method: fixed_yaw_23deg_consistent_with_three_trajectory_estimates
+notes: >-
+  The LiDAR is rigidly mounted, so the robot/LiDAR extrinsic is constant during each acquisition.
+  The project uses a fixed +23.0 degree yaw for base_link_from_unilidar_lidar, with zero roll,
+  zero pitch and exactly zero translation. This is a user-supported working geometry consistent
+  with the three trajectory-derived estimates (~20 to ~25 deg), but it is not presented as an
+  independently metrologically measured calibration. The rejected trajectory calibrations remain
+  preserved as diagnostics.

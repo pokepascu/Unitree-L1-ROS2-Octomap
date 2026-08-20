@@ -1,0 +1,15 @@
+min_range_m: 0.25
+max_range_m: 15.0
+voxel_m: 0.05
+temporal_block_s: 1.0
+sor_neighbors: 30
+sor_std_ratio: 2.0
+ror_radius_m: 0.12
+ror_min_points: 2
+dynamic_persistence_threshold: 0.20
+dynamic_candidate_max_range_m: 6.0
+human_review_max_range_m: 6.0
+plane_threshold_m: 0.03
+max_planes: 4
+cluster_eps_m: 0.18
+cluster_min_points: 20

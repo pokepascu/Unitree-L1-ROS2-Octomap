@@ -1,0 +1,11 @@
+name: Approach 3 standalone RViz refit (superseded)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  superseded_notice:
+    runs-on: ubuntu-22.04
+    steps:
+      - run: |
+          echo 'Superseded by the active Approach 3 RViz visual QA workflow, which now performs trajectory-fitted recapture and validation in one deterministic job.'

@@ -1,0 +1,340 @@
+{
+  "method": "FPFH global hypotheses + odometry-displacement-constrained ICP + three-edge cycle selection",
+  "reference": "scan_01",
+  "voxel_m": 0.05,
+  "range_m": [
+    0.25,
+    15.0
+  ],
+  "base_to_lidar_translation_m": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "base_to_lidar_translation_source": "project_constraint",
+  "extrinsic_rotation_assumed": false,
+  "physical_constraint_explanation": "With coincident robot and LiDAR origins, the norm of each inter-scan transform translation equals the recorded robot-origin displacement, regardless of the unknown constant LiDAR/base rotation.",
+  "scans": {
+    "scan_01": {
+      "points": 64355,
+      "cloud_frames": 272,
+      "frame_ids": [
+        "unilidar_lidar"
+      ],
+      "selection_pose_xyz_m": [
+        1.862,
+        -1.07,
+        0.0
+      ]
+    },
+    "scan_02": {
+      "points": 16596,
+      "cloud_frames": 26,
+      "frame_ids": [
+        "unilidar_lidar"
+      ],
+      "selection_pose_xyz_m": [
+        2.307,
+        -3.125,
+        0.0
+      ],
+      "registration_to_scan_01": {
+        "method": "FPFH_RANSAC_seed_43",
+        "fitness": 0.9647505422993492,
+        "rmse_m": 0.04732349283839027,
+        "p90_m": 0.06549359432967443,
+        "correspondences": 16011,
+        "score": 0.8701035566225687,
+        "translation_norm_m": 2.102629306368576,
+        "expected_translation_norm_m": 2.1026293063685757,
+        "translation_norm_error_m": 4.440892098500626e-16,
+        "recorded_stationary_position_displacement_m": 2.1026293063685757,
+        "translation_constraint_applied": true,
+        "transform_source_to_scan01": [
+          [
+            0.9461735576277536,
+            -0.32365761885846744,
+            0.0011595692781605875,
+            2.040778637867483
+          ],
+          [
+            0.3236591180468376,
+            0.9461725664082556,
+            -0.0014999605190833439,
+            -0.5057388310530759
+          ],
+          [
+            -0.0006116789898571688,
+            0.0017945281505259865,
+            0.9999982027571493,
+            -0.02237824811750742
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ]
+      }
+    },
+    "scan_03": {
+      "points": 16215,
+      "cloud_frames": 27,
+      "frame_ids": [
+        "unilidar_lidar"
+      ],
+      "selection_pose_xyz_m": [
+        1.949,
+        -5.399,
+        0.0
+      ],
+      "registration_to_scan_01": {
+        "method": "FPFH_RANSAC_seed_7",
+        "fitness": 0.9014492753623189,
+        "rmse_m": 0.06678086406152935,
+        "p90_m": 0.09257808608358725,
+        "correspondences": 14617,
+        "score": 0.7678875472392602,
+        "translation_norm_m": 4.329874132119778,
+        "expected_translation_norm_m": 4.329874132119778,
+        "translation_norm_error_m": 0.0,
+        "recorded_stationary_position_displacement_m": 4.329874132119778,
+        "translation_constraint_applied": true,
+        "transform_source_to_scan01": [
+          [
+            0.9996668299996467,
+            0.025642546280845942,
+            -0.0029476802227936423,
+            3.922837550423556
+          ],
+          [
+            -0.025625656670805037,
+            0.9996557468582731,
+            0.005631473467626658,
+            -1.8324296264104816
+          ],
+          [
+            0.0030910707936392043,
+            -0.005554060988244701,
+            0.999979798639896,
+            -0.0368404294227725
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ]
+      }
+    }
+  },
+  "pairwise_validation": {
+    "scan02_to_scan01_candidates": [
+      {
+        "method": "yaw_000_fixed_norm",
+        "fitness": 0.9648107977825983,
+        "rmse_m": 0.04723632879051305,
+        "p90_m": 0.06474993559096366,
+        "correspondences": 16012,
+        "score": 0.8703381402015722,
+        "translation_norm_m": 2.1026293063685757,
+        "expected_translation_norm_m": 2.1026293063685757,
+        "translation_norm_error_m": 0.0
+      },
+      {
+        "method": "FPFH_RANSAC_seed_43",
+        "fitness": 0.9647505422993492,
+        "rmse_m": 0.04732349283839027,
+        "p90_m": 0.06549359432967443,
+        "correspondences": 16011,
+        "score": 0.8701035566225687,
+        "translation_norm_m": 2.102629306368576,
+        "expected_translation_norm_m": 2.1026293063685757,
+        "translation_norm_error_m": 4.440892098500626e-16
+      },
+      {
+        "method": "FPFH_RANSAC_seed_19",
+        "fitness": 0.9647505422993492,
+        "rmse_m": 0.047344657985539274,
+        "p90_m": 0.06550715875882218,
+        "correspondences": 16011,
+        "score": 0.8700612263282707,
+        "translation_norm_m": 2.1026293063685757,
+        "expected_translation_norm_m": 2.1026293063685757,
+        "translation_norm_error_m": 0.0
+      },
+      {
+        "method": "FPFH_RANSAC_seed_7",
+        "fitness": 0.965232586165341,
+        "rmse_m": 0.04829987645450725,
+        "p90_m": 0.0671788026377224,
+        "correspondences": 16019,
+        "score": 0.8686328332563266,
+        "translation_norm_m": 2.1026293063685757,
+        "expected_translation_norm_m": 2.1026293063685757,
+        "translation_norm_error_m": 0.0
+      },
+      {
+        "method": "FPFH_FGR",
+        "fitness": 0.96529284164859,
+        "rmse_m": 0.04847155024159562,
+        "p90_m": 0.06770713582765059,
+        "correspondences": 16020,
+        "score": 0.8683497411653988,
+        "translation_norm_m": 2.1026293063685753,
+        "expected_translation_norm_m": 2.1026293063685757,
+        "translation_norm_error_m": 4.440892098500626e-16
+      }
+    ],
+    "scan03_to_scan02_candidates": [
+      {
+        "method": "yaw_270_fixed_norm",
+        "fitness": 0.912550107924761,
+        "rmse_m": 0.0666282871566139,
+        "p90_m": 0.10362566572429277,
+        "correspondences": 14797,
+        "score": 0.7792935336115332,
+        "translation_norm_m": 2.302007819274296,
+        "expected_translation_norm_m": 2.302007819274296,
+        "translation_norm_error_m": 0.0
+      },
+      {
+        "method": "FPFH_RANSAC_seed_19",
+        "fitness": 0.9130434782608695,
+        "rmse_m": 0.06787562489327857,
+        "p90_m": 0.10642124497182866,
+        "correspondences": 14805,
+        "score": 0.7772922284743123,
+        "translation_norm_m": 2.302007819274296,
+        "expected_translation_norm_m": 2.302007819274296,
+        "translation_norm_error_m": 0.0
+      },
+      {
+        "method": "FPFH_RANSAC_seed_43",
+        "fitness": 0.9131051495528831,
+        "rmse_m": 0.0682955024321824,
+        "p90_m": 0.10728890122240099,
+        "correspondences": 14806,
+        "score": 0.7765141446885183,
+        "translation_norm_m": 2.302007819274296,
+        "expected_translation_norm_m": 2.302007819274296,
+        "translation_norm_error_m": 0.0
+      },
+      {
+        "method": "FPFH_FGR",
+        "fitness": 0.9131051495528831,
+        "rmse_m": 0.06829643868127845,
+        "p90_m": 0.10733915294019475,
+        "correspondences": 14806,
+        "score": 0.7765122721903263,
+        "translation_norm_m": 2.3020078192742965,
+        "expected_translation_norm_m": 2.302007819274296,
+        "translation_norm_error_m": 4.440892098500626e-16
+      },
+      {
+        "method": "FPFH_RANSAC_seed_7",
+        "fitness": 0.9131668208448968,
+        "rmse_m": 0.06833472635938051,
+        "p90_m": 0.10732008709182278,
+        "correspondences": 14807,
+        "score": 0.7764973681261358,
+        "translation_norm_m": 2.3020078192742965,
+        "expected_translation_norm_m": 2.302007819274296,
+        "translation_norm_error_m": 4.440892098500626e-16
+      }
+    ],
+    "scan03_to_scan01_candidates": [
+      {
+        "method": "FPFH_FGR",
+        "fitness": 0.9014492753623189,
+        "rmse_m": 0.06677218940756705,
+        "p90_m": 0.09269504585733694,
+        "correspondences": 14617,
+        "score": 0.7679048965471849,
+        "translation_norm_m": 4.329874132119778,
+        "expected_translation_norm_m": 4.329874132119778,
+        "translation_norm_error_m": 0.0
+      },
+      {
+        "method": "FPFH_RANSAC_seed_19",
+        "fitness": 0.9014492753623189,
+        "rmse_m": 0.06677454546774356,
+        "p90_m": 0.09263450453124253,
+        "correspondences": 14617,
+        "score": 0.7679001844268318,
+        "translation_norm_m": 4.329874132119778,
+        "expected_translation_norm_m": 4.329874132119778,
+        "translation_norm_error_m": 0.0
+      },
+      {
+        "method": "FPFH_RANSAC_seed_7",
+        "fitness": 0.9014492753623189,
+        "rmse_m": 0.06678086406152935,
+        "p90_m": 0.09257808608358725,
+        "correspondences": 14617,
+        "score": 0.7678875472392602,
+        "translation_norm_m": 4.329874132119778,
+        "expected_translation_norm_m": 4.329874132119778,
+        "translation_norm_error_m": 0.0
+      },
+      {
+        "method": "FPFH_RANSAC_seed_43",
+        "fitness": 0.9014492753623189,
+        "rmse_m": 0.06678246098251756,
+        "p90_m": 0.09260226633695505,
+        "correspondences": 14617,
+        "score": 0.7678843533972838,
+        "translation_norm_m": 4.329874132119778,
+        "expected_translation_norm_m": 4.329874132119778,
+        "translation_norm_error_m": 0.0
+      },
+      {
+        "method": "yaw_090_fixed_norm",
+        "fitness": 0.5755781683626272,
+        "rmse_m": 0.11331012423015371,
+        "p90_m": 0.20656246876322326,
+        "correspondences": 9333,
+        "score": 0.3489579199023198,
+        "translation_norm_m": 4.3298741321197785,
+        "expected_translation_norm_m": 4.329874132119778,
+        "translation_norm_error_m": 8.881784197001252e-16
+      }
+    ],
+    "selected_scan03_to_scan02": {
+      "method": "FPFH_RANSAC_seed_19",
+      "fitness": 0.9130434782608695,
+      "rmse_m": 0.06787562489327857,
+      "p90_m": 0.10642124497182866,
+      "correspondences": 14805,
+      "score": 0.7772922284743123,
+      "translation_norm_m": 2.302007819274296,
+      "expected_translation_norm_m": 2.302007819274296,
+      "translation_norm_error_m": 0.0
+    },
+    "cycle": {
+      "translation_cycle_error_m": 0.007471798879929301,
+      "rotation_cycle_error_deg": 0.10278967242658833,
+      "chain_scan03_to_scan01_translation_norm_m": 4.3303834602584805,
+      "recorded_scan03_to_scan01_displacement_m": 4.329874132119778,
+      "chain_displacement_norm_error_m": 0.0005093281387029691
+    },
+    "joint_score": 2.406957529283905
+  },
+  "acceptance": {
+    "accepted": true,
+    "minimum_pair_fitness": 0.9014492753623189,
+    "maximum_pair_rmse_m": 0.06787562489327857,
+    "thresholds": {
+      "min_pair_fitness": 0.25,
+      "max_pair_rmse_m": 0.22,
+      "max_cycle_translation_m": 0.75,
+      "max_cycle_rotation_deg": 20.0,
+      "max_chain_displacement_norm_error_m": 0.75
+    }
+  },
+  "accepted": true,
+  "merged_points": 75500,
+  "caution": "The zero-translation base/LiDAR constraint is used only to constrain inter-scan translation magnitudes to measured odometry displacements. No LiDAR/base rotation is assumed. The merged cloud/OctoMap is canonical only when acceptance.accepted is true."
+}

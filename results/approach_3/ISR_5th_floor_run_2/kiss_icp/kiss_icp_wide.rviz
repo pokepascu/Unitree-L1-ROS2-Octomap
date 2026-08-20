@@ -1,0 +1,74 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/PointCloud2
+      Alpha: 1
+      Axis: Z
+      Color Transformer: AxisColor
+      Decay Time: 120
+      Enabled: true
+      Name: KISS-ICP local map
+      Position Transformer: XYZ
+      Size (Pixels): 4
+      Size (m): 0.035
+      Style: Points
+      Topic:
+        Depth: 20
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /kiss/local_map
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Class: rviz_default_plugins/Odometry
+      Enabled: true
+      Name: KISS-ICP odometry
+      Keep: 2000
+      Position Tolerance: 0.02
+      Angle Tolerance: 0.02
+      Shape:
+        Alpha: 0.8
+        Axes Length: 0.5
+        Axes Radius: 0.03
+        Color: 255; 255; 255
+        Head Length: 0.2
+        Head Radius: 0.1
+        Shaft Length: 0.5
+        Shaft Radius: 0.04
+        Value: Arrow
+      Topic:
+        Depth: 20
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /kiss/odometry
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 15; 15; 18
+    Fixed Frame: odom_lidar
+    Frame Rate: 30
+  Name: root
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 65
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0.5
+      Name: Wide KISS-ICP map
+      Pitch: 0.7
+      Target Frame: odom_lidar
+      Value: Orbit (rviz_default_plugins)
+      Yaw: 0.785
+    Saved: ~
+Window Geometry:
+  Height: 900
+  Width: 1600
+  X: 0
+  Y: 0

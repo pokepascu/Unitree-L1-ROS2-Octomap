@@ -1,0 +1,37 @@
+ARG BASE_IMAGE=unitree-l1-evidence
+FROM ${BASE_IMAGE}
+
+USER root
+ARG DEBIAN_FRONTEND=noninteractive
+ARG KISS_ICP_TAG=v1.3.0
+ARG CMAKE_PYPI_VERSION=3.31.6
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential \
+      git \
+      libeigen3-dev \
+      libtbb-dev \
+      ninja-build \
+      pybind11-dev \
+      python3-pip \
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 -m pip install --no-cache-dir "cmake==${CMAKE_PYPI_VERSION}" \
+    && test "$(command -v cmake)" = "/usr/local/bin/cmake" \
+    && cmake --version \
+    && python3 - <<'PY'
+import subprocess,re
+v=subprocess.check_output(['cmake','--version'],text=True)
+m=re.search(r'(\d+)\.(\d+)\.(\d+)',v)
+assert m and tuple(map(int,m.groups())) >= (3,24,0), v
+PY
+
+RUN mkdir -p /opt/kiss_ws/src \
+    && git clone --branch "${KISS_ICP_TAG}" --depth 1 https://github.com/PRBonn/kiss-icp.git /opt/kiss_ws/src/kiss-icp \
+    && source /opt/ros/humble/setup.bash \
+    && cd /opt/kiss_ws \
+    && colcon build --merge-install --packages-select kiss_icp \
+    && source /opt/kiss_ws/install/setup.bash \
+    && ros2 pkg prefix kiss_icp
+
+USER ros
+WORKDIR /workspace

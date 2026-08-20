@@ -1,0 +1,197 @@
+name: Reorganize mapping_data evidence
+
+on:
+  push:
+    branches:
+      - analysis/approach-1-static
+    paths:
+      - .github/workflows/reorganize_mapping_data_evidence.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: reorganize-mapping-data-evidence
+  cancel-in-progress: true
+
+jobs:
+  reorganize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout working branch with LFS
+        uses: actions/checkout@v4
+        with:
+          ref: analysis/approach-1-static
+          fetch-depth: 0
+          lfs: true
+
+      - name: Materialize generated LFS evidence
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git lfs install
+          git lfs pull --include='results/**/*.mp4,results/**/*.bt,results/**/*.ot'
+
+      - name: Reorganize mapping_data and mirror generated evidence
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          # Keep large generated media/maps in Git LFS inside the user-facing mirror.
+          grep -qxF 'mapping_data/**/*.mp4 filter=lfs diff=lfs merge=lfs -text' .gitattributes || echo 'mapping_data/**/*.mp4 filter=lfs diff=lfs merge=lfs -text' >> .gitattributes
+          grep -qxF 'mapping_data/**/*.bt filter=lfs diff=lfs merge=lfs -text' .gitattributes || echo 'mapping_data/**/*.bt filter=lfs diff=lfs merge=lfs -text' >> .gitattributes
+          grep -qxF 'mapping_data/**/*.ot filter=lfs diff=lfs merge=lfs -text' .gitattributes || echo 'mapping_data/**/*.ot filter=lfs diff=lfs merge=lfs -text' >> .gitattributes
+
+          mirror_evidence () {
+            SRC="$1"
+            DEST="$2/evidence"
+            rm -rf "$DEST"
+            mkdir -p "$DEST"
+            rsync -a --prune-empty-dirs \
+              --include='*/' \
+              --include='*.png' \
+              --include='*.mp4' \
+              --include='*.bt' \
+              --include='*.ot' \
+              --include='*.rviz' \
+              --include='*.yaml' \
+              --include='*.yml' \
+              --include='*.json' \
+              --include='*.md' \
+              --include='*.csv' \
+              --include='*.txt' \
+              --exclude='*' \
+              "$SRC/" "$DEST/"
+          }
+
+          mirror_evidence results/approach_1 mapping_data/01_approach_1_single_static
+          mirror_evidence results/approach_2 mapping_data/02_approach_2_three_static_icp
+          mirror_evidence results/approach_3 mapping_data/03_approach_3_mobile_lidar_odometry
+
+          cat > mapping_data/README.md <<'EOF'
+          # Mapping data organization
+
+          `mapping_data/` is the user-facing organization of the Unitree L1 mapping study. The immutable source recordings remain under `bags/raw/`, and verified stationary extracts remain under `study_data/`. Large MCAP source recordings are never duplicated here.
+
+          ## Layout
+
+          - `00_preliminary_data/` — legacy/preliminary HcMR material retained only as historical evidence.
+          - `01_approach_1_single_static/` — one verified stationary scan per environment, with local mirrored PointCloud2 and OctoMap evidence.
+          - `02_approach_2_three_static_icp/` — three stationary scans per environment, rigid registration by Iterative Closest Point (ICP), merged cloud and OctoMap evidence.
+          - `03_approach_3_mobile_lidar_odometry/` — mobile LiDAR, robot odometry, KISS-ICP diagnostics and the fixed-mount odometry + LiDAR OctoMap baseline for HcMR and the two ISR runs.
+
+          ## Evidence mirror policy
+
+          Each numbered approach contains an `evidence/` tree mirroring the generated evidence from its corresponding `results/approach_*` directory. The mirror keeps RViz2 PNG screenshots, MP4 recordings, OctoMap `.bt`/`.ot` files, RViz configurations, parameters and compact metadata/metrics needed to interpret or reopen the evidence.
+
+          `results/` remains the computational source of truth. `mapping_data/*/evidence/` is the organized browsing/delivery view. The mirrored files are byte-identical copies before Git staging; MP4 and OctoMap binaries are stored with Git LFS so identical objects are deduplicated.
+
+          No `.mcap` source recording is copied into the evidence mirror.
+
+          ## Canonical visual evidence rule
+
+          Canonical visual evidence is produced in RViz2. Analytical Matplotlib/Open3D figures may remain as secondary diagnostics, but do not replace RViz evidence. Raw evidence is retained and derived cleaned/registered/calibration products remain explicitly labelled.
+
+          ## Approach 3 fixed-mount baseline
+
+          The current project working transform for the mobile odometry + LiDAR baseline is constant over each acquisition:
+
+          ```text
+          base_link -> unilidar_lidar
+          translation = [0.0, 0.0, 0.0] m
+          roll        = 0.0 deg
+          pitch       = 0.0 deg
+          yaw         = +23.0 deg
+          ```
+
+          The `+23.0 deg` yaw is a user-supported fixed-mount working constraint consistent with the trajectory-derived yaw-like estimates, not an independently metrologically measured calibration. Earlier rejected trajectory-derived calibration fits remain preserved as diagnostics.
+
+          The odometry + LiDAR OctoMap baseline uses fixed frame `odom`, OctoMap resolution `0.10 m` and maximum inserted sensor range `15 m`. The `0.10 m` value is occupancy-map resolution, not Unitree L1 ranging accuracy.
+          EOF
+
+          cat >> mapping_data/01_approach_1_single_static/README.md <<'EOF'
+
+          ## Local evidence mirror
+
+          The generated user-facing evidence is now also available directly under `mapping_data/01_approach_1_single_static/evidence/`, preserving the relative structure of `results/approach_1/`. This includes RViz2 screenshots/videos, OctoMap `.bt`/`.ot` files, RViz configurations and compact parameters/metadata. The source MCAP recordings remain only under `study_data/`/`bags/raw/`.
+          EOF
+
+          cat >> mapping_data/02_approach_2_three_static_icp/README.md <<'EOF'
+
+          ## Local evidence mirror
+
+          The generated user-facing evidence is now also available directly under `mapping_data/02_approach_2_three_static_icp/evidence/`, preserving the relative structure of `results/approach_2/`. RViz2 captures/videos, OctoMap map files, RViz configurations, registration metrics and compact metadata are mirrored; the source MCAP recordings are not duplicated.
+          EOF
+
+          cat >> mapping_data/03_approach_3_mobile_lidar_odometry/README.md <<'EOF'
+
+          ## Local evidence mirror
+
+          The generated user-facing evidence is now also available directly under `mapping_data/03_approach_3_mobile_lidar_odometry/evidence/`, preserving the relative structure of `results/approach_3/`. In particular, each run's `odometry_lidar_fusion/` RViz build video, final isometric/top/side captures, 3D orbit video, `.bt`, `.ot`, RViz configs and mapping parameters are locally mirrored. Raw MCAP recordings remain referenced from `bags/raw/` and are never duplicated here.
+          EOF
+
+      - name: Validate mirror completeness and byte identity
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+
+          exts = {'.png','.mp4','.bt','.ot','.rviz','.yaml','.yml','.json','.md','.csv','.txt'}
+          pairs = [
+              (Path('results/approach_1'), Path('mapping_data/01_approach_1_single_static/evidence')),
+              (Path('results/approach_2'), Path('mapping_data/02_approach_2_three_static_icp/evidence')),
+              (Path('results/approach_3'), Path('mapping_data/03_approach_3_mobile_lidar_odometry/evidence')),
+          ]
+
+          def sha256(p):
+              h=hashlib.sha256()
+              with p.open('rb') as f:
+                  for chunk in iter(lambda:f.read(1024*1024), b''):
+                      h.update(chunk)
+              return h.hexdigest()
+
+          for src,dst in pairs:
+              source_files = sorted(p for p in src.rglob('*') if p.is_file() and p.suffix.lower() in exts)
+              assert source_files, src
+              for p in source_files:
+                  rel=p.relative_to(src)
+                  q=dst/rel
+                  assert q.is_file(), f'missing mirror: {q}'
+                  assert p.stat().st_size == q.stat().st_size, (p,q)
+                  assert sha256(p) == sha256(q), (p,q)
+              mirror_files = sorted(p for p in dst.rglob('*') if p.is_file())
+              assert len(mirror_files) == len(source_files), (src, len(source_files), len(mirror_files))
+              print(src, 'mirrored files:', len(source_files))
+
+          assert not list(Path('mapping_data').rglob('*.mcap')), 'MCAP must not be duplicated into mapping_data'
+
+          # Final Approach 3 captures must exist for all three runs in the organized mirror.
+          for run in ['HcMR_lab','ISR_5th_floor_run_1','ISR_5th_floor_run_2']:
+              root=Path('mapping_data/03_approach_3_mobile_lidar_odometry/evidence')/run/'odometry_lidar_fusion'
+              for name in ['01_build_rviz.mp4','02_final_isometric.png','03_final_top.png','04_final_side.png','05_3d_orbit_rviz.mp4','map.bt','map.ot']:
+                  p=root/name
+                  assert p.is_file() and p.stat().st_size > 0, p
+          PY
+
+          # Approach 1 and 2 must also expose visual evidence locally.
+          test "$(find mapping_data/01_approach_1_single_static/evidence -type f -name '*.png' | wc -l)" -gt 5
+          test "$(find mapping_data/02_approach_2_three_static_icp/evidence -type f -name '*.png' | wc -l)" -gt 5
+          test "$(find mapping_data/03_approach_3_mobile_lidar_odometry/evidence -type f -name '*.png' | wc -l)" -gt 8
+
+      - name: Commit organized mapping_data evidence
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git lfs install
+          git add .gitattributes mapping_data
+          git diff --cached --quiet && exit 0
+          git commit -m 'Reorganize mapping_data and mirror canonical mapping evidence'
+          git fetch origin analysis/approach-1-static
+          git rebase origin/analysis/approach-1-static
+          git push origin HEAD:analysis/approach-1-static

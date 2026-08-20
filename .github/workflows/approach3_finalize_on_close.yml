@@ -1,0 +1,12 @@
+name: Approach 3 legacy calibration finalize (disabled)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  legacy_disabled:
+    runs-on: ubuntu-22.04
+    steps:
+      - run: |
+          echo 'Disabled: replaced by fixed-mount 23 degree fusion workflow.'
+          echo 'The rejected trajectory-derived calibrations remain preserved under results/approach_3/*/calibration/.'

@@ -1,0 +1,56 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.12
+      Cell Size: 2
+      Class: rviz_default_plugins/Grid
+      Color: 100; 100; 100
+      Enabled: false
+      Line Style:
+        Line Width: 0.01
+        Value: Lines
+      Name: Grid
+      Plane: XY
+      Plane Cell Count: 80
+      Reference Frame: <Fixed Frame>
+      Value: false
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Mobile odometry OctoMap
+      Namespaces: {}
+      Queue Size: 100
+      Topic:
+        Depth: 1
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /occupied_cells_vis_array
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 15; 15; 18
+    Fixed Frame: odom
+    Frame Rate: 30
+  Name: root
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 65
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0.5
+      Name: Wide mobile OctoMap
+      Pitch: 0.7
+      Target Frame: odom
+      Value: Orbit (rviz_default_plugins)
+      Yaw: 0.785
+    Saved: ~
+Window Geometry:
+  Height: 900
+  Width: 1600
+  X: 0
+  Y: 0

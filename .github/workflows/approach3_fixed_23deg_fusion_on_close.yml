@@ -1,0 +1,225 @@
+name: Approach 3 fixed 23deg mount odometry LiDAR fusion
+
+on:
+  push:
+    branches: [analysis/approach-1-static]
+    paths:
+      - '.github/workflows/approach3_fixed_23deg_fusion_on_close.yml'
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: approach3-fixed-23deg-fusion
+  cancel-in-progress: true
+
+jobs:
+  fuse_three_mobile_runs:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout exact working head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Validate fixed mount transform
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          import json, math
+          p='results/approach_3/fixed_mount_extrinsic_23deg.json'
+          d=json.load(open(p))
+          assert [float(x) for x in d['translation_m']] == [0.0,0.0,0.0]
+          assert [float(x) for x in d['rotation_rpy_deg']] == [0.0,0.0,23.0]
+          assert d['canonical_fusion_allowed'] is True
+          R=d['rotation_matrix_base_from_lidar']
+          c=math.cos(math.radians(23.0)); s=math.sin(math.radians(23.0))
+          target=[[c,-s,0.0],[s,c,0.0],[0.0,0.0,1.0]]
+          err=max(abs(float(R[i][j])-target[i][j]) for i in range(3) for j in range(3))
+          assert err < 1e-12, err
+          print('FIXED_EXTRINSIC translation=(0,0,0)m roll=0 pitch=0 yaw=+23deg')
+          print('ROTATION_SOURCE', d['rotation_source'])
+          print('METROLOGY_STATUS', d['metrology_status'])
+          PY
+          for RUN in HcMR_lab ISR_5th_floor_run_1 ISR_5th_floor_run_2; do
+            test -s "results/approach_3/$RUN/odometry/odometry_trajectory.csv"
+            test -s "results/approach_3/$RUN/kiss_icp/trajectory.csv"
+          done
+
+      - name: Pull required raw MCAP LFS objects
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git lfs install
+          git lfs pull --include='bags/raw/HcMR_lab_2026-08-07_21-13-45/*.mcap,bags/raw/ISR_5th_floor_run_1_2026-08-07_21-31-58/*.mcap,bags/raw/ISR_5th_floor_run_2_2026-08-07_21-48-31/*.mcap'
+          test $(stat -c%s bags/raw/HcMR_lab_2026-08-07_21-13-45/rosbag2_2026_08_07-21_13_45_0.mcap) -gt 100000000
+          test $(stat -c%s bags/raw/ISR_5th_floor_run_1_2026-08-07_21-31-58/rosbag2_2026_08_07-21_31_58_0.mcap) -gt 400000000
+          test $(stat -c%s bags/raw/ISR_5th_floor_run_2_2026-08-07_21-48-31/rosbag2_2026_08_07-21_48_31_0.mcap) -gt 300000000
+
+      - name: Build reproducible ROS 2 evidence image
+        shell: bash
+        run: |
+          set -euxo pipefail
+          docker build -t unitree-l1-evidence -f docker/Dockerfile .
+
+      - name: Generate fused OctoMap and RViz evidence for all mobile runs
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          run_map () {
+            RUN="$1"; BAG="$2"; CAPTURE="$3"; DIST="$4"
+            ROOT="results/approach_3/$RUN"
+            OUT="$ROOT/odometry_lidar_fusion"
+            rm -rf "$OUT"
+            mkdir -p "$OUT"
+            chmod -R a+rwX "$OUT"
+            cp results/approach_3/fixed_mount_extrinsic_23deg.json "$OUT/fixed_mount_extrinsic_23deg.json"
+
+            cat > "$OUT/parameters.yaml" <<'EOF'
+          frame_id: odom
+          resolution_m: 0.10
+          sensor_model_max_range_m: 15.0
+          filter_ground_plane: false
+          input_topic: /fused_cloud
+          robot_lidar_translation_m: [0.0, 0.0, 0.0]
+          robot_lidar_rotation_rpy_deg: [0.0, 0.0, 23.0]
+          rotation_status: fixed_mount_working_constraint_user_supported
+          EOF
+
+            for VIEW in isometric top side; do
+              cp "config/rviz/approach3_fused_octomap_${VIEW}.rviz" "/tmp/fused_${VIEW}.rviz"
+              sed -i "s/Distance: 65/Distance: $DIST/" "/tmp/fused_${VIEW}.rviz"
+              cp "/tmp/fused_${VIEW}.rviz" "$OUT/octomap_${VIEW}.rviz"
+            done
+
+            docker run -d --rm --name a3fusion --network host -v "$PWD:/workspace" unitree-l1-evidence sleep infinity
+            cleanup () { docker rm -f a3fusion >/dev/null 2>&1 || true; }
+            trap cleanup RETURN
+
+            docker exec -d a3fusion bash -lc 'Xvfb :99 -screen 0 1600x900x24 -ac >/tmp/xvfb.log 2>&1'
+            sleep 3
+            docker exec a3fusion bash -lc 'command -v ffmpeg; command -v ffprobe; command -v xdotool; source /opt/ros/humble/setup.bash; ros2 pkg prefix rosbag2_storage_mcap; ros2 pkg prefix octomap_server'
+
+            docker exec -d a3fusion bash -lc \
+              'source /opt/ros/humble/setup.bash; python3 /workspace/tools/approach_3/fuse_cloud_with_odom.py --odom /workspace/'"$ROOT"'/odometry/odometry_trajectory.csv --extrinsic /workspace/results/approach_3/fixed_mount_extrinsic_23deg.json >/tmp/fusion.log 2>&1'
+            sleep 3
+
+            docker exec -d a3fusion bash -lc \
+              'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_server_node --ros-args -p frame_id:=odom -p resolution:=0.10 -p sensor_model.max_range:=15.0 -p filter_ground_plane:=false -r cloud_in:=/fused_cloud >/tmp/octomap.log 2>&1'
+            sleep 4
+
+            docker exec -d a3fusion bash -lc \
+              'source /opt/ros/humble/setup.bash; python3 /workspace/tools/approach_3/publish_odometry_path.py --csv /workspace/'"$ROOT"'/odometry/odometry_trajectory.csv --hold 500 >/tmp/path.log 2>&1'
+            sleep 2
+
+            docker exec -d a3fusion bash -lc \
+              'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_isometric.rviz >/tmp/rviz.log 2>&1'
+            sleep 7
+
+            docker exec -d a3fusion bash -lc \
+              'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t '"$CAPTURE"' -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p /workspace/'"$OUT"'/01_build_rviz.mp4 >/tmp/build_video.log 2>&1'
+            sleep 1
+
+            docker exec a3fusion bash -lc \
+              'source /opt/ros/humble/setup.bash; ros2 bag play /workspace/'"$BAG"' --storage mcap --rate 4.0 --topics /unilidar/cloud'
+            sleep 6
+            docker exec a3fusion bash -lc 'pkill -INT -x ffmpeg || true; sleep 2'
+
+            docker exec a3fusion bash -lc 'grep -E "published [0-9]+ fused clouds" /tmp/fusion.log | tail -5 || true'
+            docker exec a3fusion bash -lc 'grep -E "ERROR|Error|error|TF|transform" /tmp/octomap.log | tail -30 || true'
+
+            docker exec a3fusion bash -lc \
+              'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_saver_node --ros-args -p octomap_path:=/workspace/'"$OUT"'/map.bt'
+            docker exec a3fusion bash -lc \
+              'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_saver_node --ros-args -p full:=true -p octomap_path:=/workspace/'"$OUT"'/map.ot'
+
+            docker exec a3fusion bash -lc \
+              'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$OUT"'/02_final_isometric.png >/dev/null 2>&1'
+
+            docker exec a3fusion bash -lc 'pkill -x rviz2 || true'; sleep 2
+            docker exec -d a3fusion bash -lc \
+              'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_top.rviz >/tmp/top.log 2>&1'
+            sleep 6
+            docker exec a3fusion bash -lc \
+              'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$OUT"'/03_final_top.png >/dev/null 2>&1'
+
+            docker exec a3fusion bash -lc 'pkill -x rviz2 || true'; sleep 2
+            docker exec -d a3fusion bash -lc \
+              'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_side.rviz >/tmp/side.log 2>&1'
+            sleep 6
+            docker exec a3fusion bash -lc \
+              'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$OUT"'/04_final_side.png >/dev/null 2>&1'
+
+            docker exec a3fusion bash -lc 'pkill -x rviz2 || true'; sleep 2
+            docker exec -d a3fusion bash -lc \
+              'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_isometric.rviz >/tmp/orbit.log 2>&1'
+            sleep 6
+            docker exec -d a3fusion bash -lc \
+              'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t 12 -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p /workspace/'"$OUT"'/05_3d_orbit_rviz.mp4 >/tmp/orbit_video.log 2>&1'
+            sleep 1
+            docker exec a3fusion bash -lc \
+              'export DISPLAY=:99; WIN=$(xdotool search --onlyvisible --name RViz | head -1 || true); echo RVIZ_WINDOW=$WIN; if [ -n "$WIN" ]; then xdotool windowfocus --sync "$WIN" || true; xdotool mousemove --window "$WIN" 800 450; for j in $(seq 1 24); do xdotool mousedown 1; xdotool mousemove_relative --sync 22 0; xdotool mouseup 1; sleep 0.35; done; fi; sleep 3'
+            docker exec a3fusion bash -lc 'pkill -INT -x ffmpeg || true; sleep 2'
+
+            docker exec a3fusion bash -lc 'tail -80 /tmp/fusion.log || true; tail -100 /tmp/octomap.log || true; tail -60 /tmp/rviz.log || true'
+            docker exec a3fusion bash -lc 'ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,duration -of default=noprint_wrappers=1 /workspace/'"$OUT"'/01_build_rviz.mp4'
+            docker exec a3fusion bash -lc 'ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,duration -of default=noprint_wrappers=1 /workspace/'"$OUT"'/05_3d_orbit_rviz.mp4'
+
+            test $(stat -c%s "$OUT/map.bt") -gt 1000
+            test $(stat -c%s "$OUT/map.ot") -gt 1000
+            test $(stat -c%s "$OUT/01_build_rviz.mp4") -gt 100000
+            test $(stat -c%s "$OUT/05_3d_orbit_rviz.mp4") -gt 10000
+            for F in 02_final_isometric.png 03_final_top.png 04_final_side.png; do test $(stat -c%s "$OUT/$F") -gt 10000; done
+
+            cat > "$OUT/README.md" <<'EOF'
+          # Fixed-mount odometry + LiDAR OctoMap
+
+          This map uses the project working extrinsic `base_link_from_unilidar_lidar` with translation exactly `(0,0,0) m`, roll `0 deg`, pitch `0 deg`, and constant yaw `+23.0 deg`. The LiDAR is rigidly mounted, so this transform is constant throughout the acquisition. The +23 deg yaw is user-supported and consistent with the three trajectory-derived estimates, but is not described as an independently metrologically measured calibration.
+
+          OctoMap parameters: resolution `0.10 m`, maximum sensor range `15 m`, fixed frame `odom`. Resolution is an occupancy-grid parameter and is not a LiDAR accuracy claim.
+
+          The trajectory-derived calibration JSON files remain preserved separately as diagnostic evidence.
+          EOF
+
+            docker rm -f a3fusion
+            trap - RETURN
+          }
+
+          run_map HcMR_lab bags/raw/HcMR_lab_2026-08-07_21-13-45 60 35
+          run_map ISR_5th_floor_run_1 bags/raw/ISR_5th_floor_run_1_2026-08-07_21-31-58 180 75
+          run_map ISR_5th_floor_run_2 bags/raw/ISR_5th_floor_run_2_2026-08-07_21-48-31 145 70
+
+      - name: Write Approach 3 final working-baseline status
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cat > results/approach_3/CALIBRATION_STATUS.md <<'EOF'
+          # Approach 3 fixed-mount working extrinsic
+
+          Translation `base_link -> unilidar_lidar` is fixed to exactly `(0,0,0) m`. The LiDAR is rigidly mounted and a constant `+23.0 deg` yaw (`roll=0`, `pitch=0`) is used for the odometry + LiDAR mapping baseline. This value is user-supported and consistent with the three trajectory-derived estimates near +20 to +25 deg. It is not represented as an independently metrologically measured calibration.
+
+          The previous trajectory-derived rotation calibrations remain preserved as diagnostics and remain marked rejected under their original quantitative acceptance criteria.
+          EOF
+
+      - name: Commit generated fixed-mount fusion evidence
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git lfs install
+          git add results/approach_3 config/approach_3/lidar_robot_extrinsics.yaml .github/workflows/approach3_fixed_23deg_fusion_on_close.yml
+          git diff --cached --quiet && exit 0
+          git commit -m 'Generate Approach 3 fixed 23deg odometry LiDAR maps'
+          git fetch origin analysis/approach-1-static
+          git rebase origin/analysis/approach-1-static
+          git push origin HEAD:analysis/approach-1-static

@@ -1,0 +1,8 @@
+name: Approach 1 PointCloud2 wide RViz evidence — completed
+on:
+  workflow_dispatch:
+jobs:
+  archived:
+    runs-on: ubuntu-22.04
+    steps:
+      - run: echo 'Completed canonical outputs are already committed. Full reproducible workflow is archived at .github/workflow_archive/approach1_rviz_capture.yml.'

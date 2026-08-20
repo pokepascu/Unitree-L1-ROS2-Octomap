@@ -10,20 +10,27 @@ ENV ROS_DISTRO=humble \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     QT_X11_NO_MITSHM=1 \
+    LIBGL_ALWAYS_SOFTWARE=1 \
     PYTHONDONTWRITEBYTECODE=1
 
 LABEL org.opencontainers.image.title="Unitree L1 ROS 2" \
-      org.opencontainers.image.description="Minimal ROS 2 Humble, Unitree L1, OctoMap, RViz2, and rosbag2 environment" \
+      org.opencontainers.image.description="ROS 2 Humble, Unitree L1, OctoMap, RViz2, MCAP replay and headless evidence capture" \
       io.unitree-l1.sdk.commit="${UNITREE_SDK_COMMIT}"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# The official perception image already supplies PCL, colcon, rosbag2,
-# ros2topic, and the compiler. Add only the two requested runtime tools.
+# Keep the entire RViz capture stack inside the reproducible project image.
+# GitHub runners therefore only need Docker and Git LFS; their host X11/apt
+# state no longer affects the visual-evidence workflow.
 RUN apt-get update && apt-get install -y --no-install-recommends \
+      ffmpeg \
       libgl1-mesa-dri \
+      python3-numpy \
       ros-humble-octomap-server \
+      ros-humble-rosbag2-storage-mcap \
       ros-humble-rviz2 \
+      xdotool \
+      xvfb \
     && rm -rf /var/lib/apt/lists/*
 
 # Pin the vendor source instead of silently building whatever is newest.
@@ -55,11 +62,15 @@ RUN source /opt/ros/humble/setup.bash \
     && ros2 pkg prefix unitree_lidar_ros2 \
     && ros2 pkg prefix l1_bringup \
     && ros2 pkg prefix l1_octomap_bringup \
+    && ros2 pkg prefix rosbag2_storage_mcap \
+    && python3 -c 'import numpy' \
+    && command -v Xvfb \
+    && command -v ffmpeg \
+    && command -v xdotool \
     && ros2 pkg executables octomap_server | grep -F \
       "octomap_server octomap_server_node" \
     && ros2 launch l1_bringup unitree_l1.launch.py --show-args \
-    && ros2 launch l1_octomap_bringup \
-      unitree_l1_octomap.launch.py --show-args \
+    && ros2 launch l1_octomap_bringup unitree_l1_octomap.launch.py --show-args \
     && rm -rf /tmp/unitree_colcon_build /tmp/unitree_colcon_log
 
 RUN groupadd --gid "${HOST_GID}" ros \
@@ -72,7 +83,4 @@ COPY docker/ros2-profile.sh /etc/profile.d/unitree-ros2.sh
 
 USER ros
 WORKDIR /workspace
-
-# The base image entrypoint sources /opt/ros/humble. Use `bash -l` for an
-# interactive shell; the profile file also sources this project's overlay.
 CMD ["bash"]

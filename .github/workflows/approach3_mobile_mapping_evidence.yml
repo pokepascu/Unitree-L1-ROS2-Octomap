@@ -1,0 +1,8 @@
+name: Approach 3 complete mobile LiDAR odometry evidence — superseded
+on:
+  workflow_dispatch:
+jobs:
+  archived:
+    runs-on: ubuntu-22.04
+    steps:
+      - run: echo 'Superseded by the zero-translation calibration/fusion correction workflow. Full historical workflow is archived at .github/workflow_archive/approach3_mobile_mapping_evidence.yml.'
