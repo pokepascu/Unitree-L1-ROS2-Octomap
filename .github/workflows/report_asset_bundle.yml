@@ -3,6 +3,9 @@ on:
   push:
     branches: [report-assets-temp]
     paths: ['.github/workflows/report_asset_bundle.yml']
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/report_asset_bundle.yml']
 permissions:
   contents: read
 jobs:
