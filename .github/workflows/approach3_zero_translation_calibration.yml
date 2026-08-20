@@ -1,109 +1,12 @@
-name: Approach 3 zero-translation extrinsic calibration
+name: Approach 3 trajectory calibration diagnostic (manual only)
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'tools/approach_3/calibrate_zero_translation_extrinsic.py'
-      - 'tools/approach_3/aggregate_extrinsic_calibrations.py'
-      - 'config/approach_3/lidar_robot_extrinsics.yaml'
-      - '.github/workflows/approach3_zero_translation_calibration.yml'
-
-permissions:
-  contents: write
-
-concurrency:
-  group: approach3-zero-translation-calibration
-  cancel-in-progress: true
 
 jobs:
-  calibrate:
-    if: github.actor != 'github-actions[bot]'
+  diagnostic_only:
     runs-on: ubuntu-22.04
-    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          lfs: false
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - name: Validate trajectories and zero translation constraint
-        shell: bash
-        run: |
-          set -euxo pipefail
-          python3 - <<'PY'
-          import yaml
-          p='config/approach_3/lidar_robot_extrinsics.yaml'
-          d=yaml.safe_load(open(p))
-          assert [float(x) for x in d['translation_m']] == [0.0,0.0,0.0]
-          print('CONFIRMED_TRANSLATION_M', d['translation_m'])
-          PY
-          for RUN in HcMR_lab ISR_5th_floor_run_1 ISR_5th_floor_run_2; do
-            test -s "results/approach_3/$RUN/odometry/odometry_trajectory.csv"
-            test -s "results/approach_3/$RUN/kiss_icp/trajectory.csv"
-          done
-
-      - name: Estimate robot from LiDAR rotation on each run
-        shell: bash
-        run: |
-          set -euxo pipefail
-          python3 -m pip install numpy pyyaml
-          for RUN in HcMR_lab ISR_5th_floor_run_1 ISR_5th_floor_run_2; do
-            ROOT="results/approach_3/$RUN"
-            rm -rf "$ROOT/calibration"
-            mkdir -p "$ROOT/calibration"
-            cp config/approach_3/lidar_robot_extrinsics.yaml "$ROOT/calibration/lidar_robot_extrinsics.yaml"
-            python3 tools/approach_3/calibrate_zero_translation_extrinsic.py \
-              --odom "$ROOT/odometry/odometry_trajectory.csv" \
-              --kiss "$ROOT/kiss_icp/trajectory.csv" \
-              --out "$ROOT/calibration"
-            cat "$ROOT/calibration/extrinsic_rotation_estimate.json"
-          done
-
-      - name: Cross-check one common physical extrinsic
-        shell: bash
-        run: |
-          set -euxo pipefail
-          python3 tools/approach_3/aggregate_extrinsic_calibrations.py \
-            --input HcMR_lab=results/approach_3/HcMR_lab/calibration/extrinsic_rotation_estimate.json \
-            --input ISR_5th_floor_run_1=results/approach_3/ISR_5th_floor_run_1/calibration/extrinsic_rotation_estimate.json \
-            --input ISR_5th_floor_run_2=results/approach_3/ISR_5th_floor_run_2/calibration/extrinsic_rotation_estimate.json \
-            --out results/approach_3/common_extrinsic_rotation.json \
-            --max-angle-deg 10.0
-          cat results/approach_3/common_extrinsic_rotation.json
-          for RUN in HcMR_lab ISR_5th_floor_run_1 ISR_5th_floor_run_2; do
-            cp results/approach_3/common_extrinsic_rotation.json "results/approach_3/$RUN/calibration/common_extrinsic_rotation.json"
-          done
-
-      - name: Document calibration decision
-        shell: bash
-        run: |
-          set -euxo pipefail
-          OK=$(python3 -c "import json; print('1' if json.load(open('results/approach_3/common_extrinsic_rotation.json'))['canonical_fusion_allowed'] else '0')")
-          if [ "$OK" = 1 ]; then
-            cat > results/approach_3/CALIBRATION_STATUS.md <<'EOF'
-          # Approach 3 extrinsic calibration status
-
-          Translation `base_link -> unilidar_lidar` is fixed to exactly `(0, 0, 0) m` as a project constraint. Rotation is not assumed: it is estimated independently from recorded odometry and KISS-ICP relative motions on all three mobile runs and accepted only after the cross-run consistency gate in `common_extrinsic_rotation.json` passes.
-          EOF
-          else
-            cat > results/approach_3/CALIBRATION_STATUS.md <<'EOF'
-          # Approach 3 extrinsic calibration status — fusion blocked
-
-          Translation `base_link -> unilidar_lidar` is fixed to exactly `(0, 0, 0) m`. The trajectory-derived rotation did not pass the cross-run physical-consistency gate, so odometry + LiDAR fusion remains deliberately blocked. Valid resolutions are: measure/recover the true mounting rotation; confirm explicitly that robot and LiDAR axes are physically aligned if that is true; or record a dedicated calibration trajectory with stronger rotational and translational excitation.
-          EOF
-          fi
-
-      - name: Commit calibration evidence
-        if: github.event.pull_request.head.repo.full_name == github.repository
-        shell: bash
-        run: |
-          set -euxo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add results/approach_3 config/approach_3/lidar_robot_extrinsics.yaml .github/workflows/approach3_zero_translation_calibration.yml
-          git diff --cached --quiet && exit 0
-          git commit -m 'Calibrate zero-translation robot LiDAR rotation'
-          git push origin HEAD:analysis/approach-1-static
+      - run: |
+          echo 'Manual diagnostic only.'
+          echo 'The project now uses a fixed +23 degree yaw working extrinsic for the mounted LiDAR, while preserving the rejected trajectory-derived estimates as diagnostics.'
