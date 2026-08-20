@@ -1,0 +1,42 @@
+name: Approach 3 RViz visual review artifact
+
+on:
+  pull_request:
+    types: [reopened]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  package_rviz_screenshots:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout current PR head
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Verify all nine canonical screenshots
+        shell: bash
+        run: |
+          set -euxo pipefail
+          for RUN in HcMR_lab ISR_5th_floor_run_1 ISR_5th_floor_run_2; do
+            ROOT="results/approach_3/$RUN/odometry_lidar_fusion"
+            for F in 02_final_isometric.png 03_final_top.png 04_final_side.png; do
+              test -s "$ROOT/$F"
+              file "$ROOT/$F"
+            done
+          done
+
+      - name: Upload RViz screenshots for visual inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: approach3-fixed23-rviz-screenshots
+          path: |
+            results/approach_3/HcMR_lab/odometry_lidar_fusion/*.png
+            results/approach_3/ISR_5th_floor_run_1/odometry_lidar_fusion/*.png
+            results/approach_3/ISR_5th_floor_run_2/odometry_lidar_fusion/*.png
+          if-no-files-found: error
+          retention-days: 7
