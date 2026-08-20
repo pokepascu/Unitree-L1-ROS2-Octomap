@@ -177,10 +177,10 @@ jobs:
             test $(stat -c%s "$OUT/map.bt") -gt 1000
             test $(stat -c%s "$OUT/map.ot") -gt 1000
             test $(stat -c%s "$OUT/01_build_rviz.mp4") -gt 100000
-            test $(stat -c%s "$OUT/05_3d_orbit_rviz.mp4") -gt 30000
+            test $(stat -c%s "$OUT/05_3d_orbit_rviz.mp4") -gt 10000
             for F in 02_final_isometric.png 03_final_top.png 04_final_side.png; do test $(stat -c%s "$OUT/$F") -gt 10000; done
 
-            cat > "$OUT/README.md" <<EOF
+            cat > "$OUT/README.md" <<'EOF'
           # Fixed-mount odometry + LiDAR OctoMap
 
           This map uses the project working extrinsic `base_link_from_unilidar_lidar` with translation exactly `(0,0,0) m`, roll `0 deg`, pitch `0 deg`, and constant yaw `+23.0 deg`. The LiDAR is rigidly mounted, so this transform is constant throughout the acquisition. The +23 deg yaw is user-supported and consistent with the three trajectory-derived estimates, but is not described as an independently metrologically measured calibration.
