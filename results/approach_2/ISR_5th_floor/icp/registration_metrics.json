@@ -179,10 +179,10 @@
       {
         "method": "FPFH_FGR",
         "fitness": 0.96529284164859,
-        "rmse_m": 0.048474817435723815,
-        "p90_m": 0.06768549654700273,
+        "rmse_m": 0.04847155024159562,
+        "p90_m": 0.06770713582765059,
         "correspondences": 16020,
-        "score": 0.8683432067771424,
+        "score": 0.8683497411653988,
         "translation_norm_m": 2.1026293063685753,
         "expected_translation_norm_m": 2.1026293063685757,
         "translation_norm_error_m": 4.440892098500626e-16
@@ -212,17 +212,6 @@
         "translation_norm_error_m": 0.0
       },
       {
-        "method": "FPFH_FGR",
-        "fitness": 0.9131051495528831,
-        "rmse_m": 0.06793973005495463,
-        "p90_m": 0.1065652290330911,
-        "correspondences": 14806,
-        "score": 0.7772256894429739,
-        "translation_norm_m": 2.302007819274296,
-        "expected_translation_norm_m": 2.302007819274296,
-        "translation_norm_error_m": 0.0
-      },
-      {
         "method": "FPFH_RANSAC_seed_43",
         "fitness": 0.9131051495528831,
         "rmse_m": 0.0682955024321824,
@@ -232,6 +221,17 @@
         "translation_norm_m": 2.302007819274296,
         "expected_translation_norm_m": 2.302007819274296,
         "translation_norm_error_m": 0.0
+      },
+      {
+        "method": "FPFH_FGR",
+        "fitness": 0.9131051495528831,
+        "rmse_m": 0.06829643868127845,
+        "p90_m": 0.10733915294019475,
+        "correspondences": 14806,
+        "score": 0.7765122721903263,
+        "translation_norm_m": 2.3020078192742965,
+        "expected_translation_norm_m": 2.302007819274296,
+        "translation_norm_error_m": 4.440892098500626e-16
       },
       {
         "method": "FPFH_RANSAC_seed_7",
@@ -249,13 +249,13 @@
       {
         "method": "FPFH_FGR",
         "fitness": 0.9014492753623189,
-        "rmse_m": 0.06677312785956328,
-        "p90_m": 0.09265502725777769,
+        "rmse_m": 0.06677218940756705,
+        "p90_m": 0.09269504585733694,
         "correspondences": 14617,
-        "score": 0.7679030196431923,
-        "translation_norm_m": 4.3298741321197785,
+        "score": 0.7679048965471849,
+        "translation_norm_m": 4.329874132119778,
         "expected_translation_norm_m": 4.329874132119778,
-        "translation_norm_error_m": 8.881784197001252e-16
+        "translation_norm_error_m": 0.0
       },
       {
         "method": "FPFH_RANSAC_seed_19",
@@ -303,29 +303,29 @@
       }
     ],
     "selected_scan03_to_scan02": {
-      "method": "FPFH_FGR",
-      "fitness": 0.9131051495528831,
-      "rmse_m": 0.06793973005495463,
-      "p90_m": 0.1065652290330911,
-      "correspondences": 14806,
-      "score": 0.7772256894429739,
+      "method": "FPFH_RANSAC_seed_19",
+      "fitness": 0.9130434782608695,
+      "rmse_m": 0.06787562489327857,
+      "p90_m": 0.10642124497182866,
+      "correspondences": 14805,
+      "score": 0.7772922284743123,
       "translation_norm_m": 2.302007819274296,
       "expected_translation_norm_m": 2.302007819274296,
       "translation_norm_error_m": 0.0
     },
     "cycle": {
-      "translation_cycle_error_m": 0.0075180332488748,
-      "rotation_cycle_error_deg": 0.09217918473182227,
-      "chain_scan03_to_scan01_translation_norm_m": 4.33039402802646,
+      "translation_cycle_error_m": 0.007471798879929301,
+      "rotation_cycle_error_deg": 0.10278967242658833,
+      "chain_scan03_to_scan01_translation_norm_m": 4.3303834602584805,
       "recorded_scan03_to_scan01_displacement_m": 4.329874132119778,
-      "chain_displacement_norm_error_m": 0.0005198959066827769
+      "chain_displacement_norm_error_m": 0.0005093281387029691
     },
-    "joint_score": 2.4070018657516017
+    "joint_score": 2.406957529283905
   },
   "acceptance": {
     "accepted": true,
     "minimum_pair_fitness": 0.9014492753623189,
-    "maximum_pair_rmse_m": 0.06793973005495463,
+    "maximum_pair_rmse_m": 0.06787562489327857,
     "thresholds": {
       "min_pair_fitness": 0.25,
       "max_pair_rmse_m": 0.22,
