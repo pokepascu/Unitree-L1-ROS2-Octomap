@@ -39,12 +39,12 @@
         0.0
       ],
       "registration_to_scan_01": {
-        "method": "FPFH_RANSAC_seed_7",
-        "fitness": 0.9646902868161003,
-        "rmse_m": 0.04726462683582051,
-        "p90_m": 0.06547504337482767,
-        "correspondences": 16010,
-        "score": 0.8701610331444593,
+        "method": "FPFH_RANSAC_seed_43",
+        "fitness": 0.9647505422993492,
+        "rmse_m": 0.04732349283839027,
+        "p90_m": 0.06549359432967443,
+        "correspondences": 16011,
+        "score": 0.8701035566225687,
         "translation_norm_m": 2.102629306368576,
         "expected_translation_norm_m": 2.1026293063685757,
         "translation_norm_error_m": 4.440892098500626e-16,
@@ -52,22 +52,22 @@
         "translation_constraint_applied": true,
         "transform_source_to_scan01": [
           [
-            0.946200414218951,
-            -0.3235788616169346,
-            0.0012232933291768035,
-            2.040767831687444
+            0.9461735576277536,
+            -0.32365761885846744,
+            0.0011595692781605875,
+            2.040778637867483
           ],
           [
-            0.3235804213356588,
-            0.9461996056032898,
-            -0.001420311380100062,
-            -0.5057797706737257
+            0.3236591180468376,
+            0.9461725664082556,
+            -0.0014999605190833439,
+            -0.5057388310530759
           ],
           [
-            -0.0006978969260899483,
-            0.001739732987042711,
-            0.9999982431329623,
-            -0.022438376210422314
+            -0.0006116789898571688,
+            0.0017945281505259865,
+            0.9999982027571493,
+            -0.02237824811750742
           ],
           [
             0.0,
@@ -92,33 +92,33 @@
       "registration_to_scan_01": {
         "method": "FPFH_RANSAC_seed_7",
         "fitness": 0.9014492753623189,
-        "rmse_m": 0.06678086406153004,
-        "p90_m": 0.09257808608358913,
+        "rmse_m": 0.06678086406152935,
+        "p90_m": 0.09257808608358725,
         "correspondences": 14617,
-        "score": 0.7678875472392588,
-        "translation_norm_m": 4.3298741321197785,
+        "score": 0.7678875472392602,
+        "translation_norm_m": 4.329874132119778,
         "expected_translation_norm_m": 4.329874132119778,
-        "translation_norm_error_m": 8.881784197001252e-16,
+        "translation_norm_error_m": 0.0,
         "recorded_stationary_position_displacement_m": 4.329874132119778,
         "translation_constraint_applied": true,
         "transform_source_to_scan01": [
           [
-            0.9996668299996452,
-            0.025642546280847833,
-            -0.002947680222793554,
+            0.9996668299996467,
+            0.025642546280845942,
+            -0.0029476802227936423,
             3.922837550423556
           ],
           [
-            -0.025625656670803337,
-            0.999655746858276,
-            0.005631473467626679,
-            -1.8324296264104822
+            -0.025625656670805037,
+            0.9996557468582731,
+            0.005631473467626658,
+            -1.8324296264104816
           ],
           [
-            0.0030910707936389714,
-            -0.005554060988245032,
-            0.9999797986398977,
-            -0.036840429422774996
+            0.0030910707936392043,
+            -0.005554060988244701,
+            0.999979798639896,
+            -0.0368404294227725
           ],
           [
             0.0,
@@ -135,54 +135,54 @@
       {
         "method": "yaw_000_fixed_norm",
         "fitness": 0.9648107977825983,
-        "rmse_m": 0.047236328790513656,
-        "p90_m": 0.0647499355909678,
+        "rmse_m": 0.04723632879051305,
+        "p90_m": 0.06474993559096366,
         "correspondences": 16012,
-        "score": 0.870338140201571,
+        "score": 0.8703381402015722,
+        "translation_norm_m": 2.1026293063685757,
+        "expected_translation_norm_m": 2.1026293063685757,
+        "translation_norm_error_m": 0.0
+      },
+      {
+        "method": "FPFH_RANSAC_seed_43",
+        "fitness": 0.9647505422993492,
+        "rmse_m": 0.04732349283839027,
+        "p90_m": 0.06549359432967443,
+        "correspondences": 16011,
+        "score": 0.8701035566225687,
+        "translation_norm_m": 2.102629306368576,
+        "expected_translation_norm_m": 2.1026293063685757,
+        "translation_norm_error_m": 4.440892098500626e-16
+      },
+      {
+        "method": "FPFH_RANSAC_seed_19",
+        "fitness": 0.9647505422993492,
+        "rmse_m": 0.047344657985539274,
+        "p90_m": 0.06550715875882218,
+        "correspondences": 16011,
+        "score": 0.8700612263282707,
         "translation_norm_m": 2.1026293063685757,
         "expected_translation_norm_m": 2.1026293063685757,
         "translation_norm_error_m": 0.0
       },
       {
         "method": "FPFH_RANSAC_seed_7",
-        "fitness": 0.9646902868161003,
-        "rmse_m": 0.04726462683582051,
-        "p90_m": 0.06547504337482767,
-        "correspondences": 16010,
-        "score": 0.8701610331444593,
-        "translation_norm_m": 2.102629306368576,
-        "expected_translation_norm_m": 2.1026293063685757,
-        "translation_norm_error_m": 4.440892098500626e-16
-      },
-      {
-        "method": "FPFH_RANSAC_seed_43",
-        "fitness": 0.9647505422993492,
-        "rmse_m": 0.04732349283839014,
-        "p90_m": 0.06549359432967582,
-        "correspondences": 16011,
-        "score": 0.8701035566225689,
+        "fitness": 0.965232586165341,
+        "rmse_m": 0.04829987645450725,
+        "p90_m": 0.0671788026377224,
+        "correspondences": 16019,
+        "score": 0.8686328332563266,
         "translation_norm_m": 2.1026293063685757,
         "expected_translation_norm_m": 2.1026293063685757,
         "translation_norm_error_m": 0.0
       },
       {
-        "method": "FPFH_RANSAC_seed_19",
-        "fitness": 0.9647505422993492,
-        "rmse_m": 0.047344657985539274,
-        "p90_m": 0.06550715875882429,
-        "correspondences": 16011,
-        "score": 0.8700612263282707,
-        "translation_norm_m": 2.102629306368576,
-        "expected_translation_norm_m": 2.1026293063685757,
-        "translation_norm_error_m": 4.440892098500626e-16
-      },
-      {
         "method": "FPFH_FGR",
-        "fitness": 0.9651723306820921,
-        "rmse_m": 0.048220745355211495,
-        "p90_m": 0.06699874777817869,
-        "correspondences": 16018,
-        "score": 0.8687308399716691,
+        "fitness": 0.96529284164859,
+        "rmse_m": 0.048474817435723815,
+        "p90_m": 0.06768549654700273,
+        "correspondences": 16020,
+        "score": 0.8683432067771424,
         "translation_norm_m": 2.1026293063685753,
         "expected_translation_norm_m": 2.1026293063685757,
         "translation_norm_error_m": 4.440892098500626e-16
@@ -192,10 +192,10 @@
       {
         "method": "yaw_270_fixed_norm",
         "fitness": 0.912550107924761,
-        "rmse_m": 0.0666282871566138,
-        "p90_m": 0.10362566572430358,
+        "rmse_m": 0.0666282871566139,
+        "p90_m": 0.10362566572429277,
         "correspondences": 14797,
-        "score": 0.7792935336115334,
+        "score": 0.7792935336115332,
         "translation_norm_m": 2.302007819274296,
         "expected_translation_norm_m": 2.302007819274296,
         "translation_norm_error_m": 0.0
@@ -203,21 +203,10 @@
       {
         "method": "FPFH_RANSAC_seed_19",
         "fitness": 0.9130434782608695,
-        "rmse_m": 0.06787562489327899,
-        "p90_m": 0.10642124497182727,
+        "rmse_m": 0.06787562489327857,
+        "p90_m": 0.10642124497182866,
         "correspondences": 14805,
-        "score": 0.7772922284743116,
-        "translation_norm_m": 2.302007819274296,
-        "expected_translation_norm_m": 2.302007819274296,
-        "translation_norm_error_m": 0.0
-      },
-      {
-        "method": "FPFH_RANSAC_seed_43",
-        "fitness": 0.9131051495528831,
-        "rmse_m": 0.06829550243218291,
-        "p90_m": 0.10728890122240972,
-        "correspondences": 14806,
-        "score": 0.7765141446885173,
+        "score": 0.7772922284743123,
         "translation_norm_m": 2.302007819274296,
         "expected_translation_norm_m": 2.302007819274296,
         "translation_norm_error_m": 0.0
@@ -225,10 +214,21 @@
       {
         "method": "FPFH_FGR",
         "fitness": 0.9131051495528831,
-        "rmse_m": 0.06829643868127895,
-        "p90_m": 0.10733915294020235,
+        "rmse_m": 0.06793973005495463,
+        "p90_m": 0.1065652290330911,
         "correspondences": 14806,
-        "score": 0.7765122721903253,
+        "score": 0.7772256894429739,
+        "translation_norm_m": 2.302007819274296,
+        "expected_translation_norm_m": 2.302007819274296,
+        "translation_norm_error_m": 0.0
+      },
+      {
+        "method": "FPFH_RANSAC_seed_43",
+        "fitness": 0.9131051495528831,
+        "rmse_m": 0.0682955024321824,
+        "p90_m": 0.10728890122240099,
+        "correspondences": 14806,
+        "score": 0.7765141446885183,
         "translation_norm_m": 2.302007819274296,
         "expected_translation_norm_m": 2.302007819274296,
         "translation_norm_error_m": 0.0
@@ -236,23 +236,23 @@
       {
         "method": "FPFH_RANSAC_seed_7",
         "fitness": 0.9131668208448968,
-        "rmse_m": 0.06833472635938063,
-        "p90_m": 0.1073200870918221,
+        "rmse_m": 0.06833472635938051,
+        "p90_m": 0.10732008709182278,
         "correspondences": 14807,
-        "score": 0.7764973681261355,
-        "translation_norm_m": 2.302007819274296,
+        "score": 0.7764973681261358,
+        "translation_norm_m": 2.3020078192742965,
         "expected_translation_norm_m": 2.302007819274296,
-        "translation_norm_error_m": 0.0
+        "translation_norm_error_m": 4.440892098500626e-16
       }
     ],
     "scan03_to_scan01_candidates": [
       {
         "method": "FPFH_FGR",
         "fitness": 0.9014492753623189,
-        "rmse_m": 0.06677218940756698,
-        "p90_m": 0.09269504585733931,
+        "rmse_m": 0.06677312785956328,
+        "p90_m": 0.09265502725777769,
         "correspondences": 14617,
-        "score": 0.767904896547185,
+        "score": 0.7679030196431923,
         "translation_norm_m": 4.3298741321197785,
         "expected_translation_norm_m": 4.329874132119778,
         "translation_norm_error_m": 8.881784197001252e-16
@@ -260,72 +260,72 @@
       {
         "method": "FPFH_RANSAC_seed_19",
         "fitness": 0.9014492753623189,
-        "rmse_m": 0.0667745454677439,
-        "p90_m": 0.09263450453124408,
+        "rmse_m": 0.06677454546774356,
+        "p90_m": 0.09263450453124253,
         "correspondences": 14617,
-        "score": 0.7679001844268311,
-        "translation_norm_m": 4.329874132119777,
+        "score": 0.7679001844268318,
+        "translation_norm_m": 4.329874132119778,
         "expected_translation_norm_m": 4.329874132119778,
-        "translation_norm_error_m": 8.881784197001252e-16
+        "translation_norm_error_m": 0.0
       },
       {
         "method": "FPFH_RANSAC_seed_7",
         "fitness": 0.9014492753623189,
-        "rmse_m": 0.06678086406153004,
-        "p90_m": 0.09257808608358913,
+        "rmse_m": 0.06678086406152935,
+        "p90_m": 0.09257808608358725,
         "correspondences": 14617,
-        "score": 0.7678875472392588,
-        "translation_norm_m": 4.3298741321197785,
+        "score": 0.7678875472392602,
+        "translation_norm_m": 4.329874132119778,
         "expected_translation_norm_m": 4.329874132119778,
-        "translation_norm_error_m": 8.881784197001252e-16
+        "translation_norm_error_m": 0.0
       },
       {
         "method": "FPFH_RANSAC_seed_43",
         "fitness": 0.9014492753623189,
-        "rmse_m": 0.06678246098251749,
-        "p90_m": 0.09260226633695683,
+        "rmse_m": 0.06678246098251756,
+        "p90_m": 0.09260226633695505,
         "correspondences": 14617,
-        "score": 0.7678843533972839,
-        "translation_norm_m": 4.3298741321197785,
+        "score": 0.7678843533972838,
+        "translation_norm_m": 4.329874132119778,
         "expected_translation_norm_m": 4.329874132119778,
-        "translation_norm_error_m": 8.881784197001252e-16
+        "translation_norm_error_m": 0.0
       },
       {
         "method": "yaw_090_fixed_norm",
         "fitness": 0.5755781683626272,
-        "rmse_m": 0.11331012423015414,
-        "p90_m": 0.20656246876322365,
+        "rmse_m": 0.11331012423015371,
+        "p90_m": 0.20656246876322326,
         "correspondences": 9333,
-        "score": 0.34895791990231895,
-        "translation_norm_m": 4.329874132119778,
+        "score": 0.3489579199023198,
+        "translation_norm_m": 4.3298741321197785,
         "expected_translation_norm_m": 4.329874132119778,
-        "translation_norm_error_m": 0.0
+        "translation_norm_error_m": 8.881784197001252e-16
       }
     ],
     "selected_scan03_to_scan02": {
-      "method": "FPFH_RANSAC_seed_19",
-      "fitness": 0.9130434782608695,
-      "rmse_m": 0.06787562489327899,
-      "p90_m": 0.10642124497182727,
-      "correspondences": 14805,
-      "score": 0.7772922284743116,
+      "method": "FPFH_FGR",
+      "fitness": 0.9131051495528831,
+      "rmse_m": 0.06793973005495463,
+      "p90_m": 0.1065652290330911,
+      "correspondences": 14806,
+      "score": 0.7772256894429739,
       "translation_norm_m": 2.302007819274296,
       "expected_translation_norm_m": 2.302007819274296,
       "translation_norm_error_m": 0.0
     },
     "cycle": {
-      "translation_cycle_error_m": 0.007228160769163946,
-      "rotation_cycle_error_deg": 0.0952495541005283,
-      "chain_scan03_to_scan01_translation_norm_m": 4.330357807502104,
+      "translation_cycle_error_m": 0.0075180332488748,
+      "rotation_cycle_error_deg": 0.09217918473182227,
+      "chain_scan03_to_scan01_translation_norm_m": 4.33039402802646,
       "recorded_scan03_to_scan01_displacement_m": 4.329874132119778,
-      "chain_displacement_norm_error_m": 0.00048367538232607643
+      "chain_displacement_norm_error_m": 0.0005198959066827769
     },
-    "joint_score": 2.407357004817755
+    "joint_score": 2.4070018657516017
   },
   "acceptance": {
     "accepted": true,
     "minimum_pair_fitness": 0.9014492753623189,
-    "maximum_pair_rmse_m": 0.06787562489327899,
+    "maximum_pair_rmse_m": 0.06793973005495463,
     "thresholds": {
       "min_pair_fitness": 0.25,
       "max_pair_rmse_m": 0.22,
@@ -335,6 +335,6 @@
     }
   },
   "accepted": true,
-  "merged_points": 75498,
+  "merged_points": 75500,
   "caution": "The zero-translation base/LiDAR constraint is used only to constrain inter-scan translation magnitudes to measured odometry displacements. No LiDAR/base rotation is assumed. The merged cloud/OctoMap is canonical only when acceptance.accepted is true."
 }
