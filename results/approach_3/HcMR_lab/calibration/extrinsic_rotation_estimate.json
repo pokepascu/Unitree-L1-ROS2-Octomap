@@ -15,17 +15,17 @@
     [
       0.3927558990798341,
       0.9196400112068829,
-      0.0022480047586835297
+      0.00224800475868342
     ],
     [
-      0.007681446349310511,
-      -0.005724886803053825,
+      0.0076814463493105195,
+      -0.005724886803053802,
       0.9999541094735673
     ]
   ],
   "rotation_quaternion_xyzw_base_from_lidar": [
-    -0.0020345352642579485,
-    -0.004336580389532054,
+    -0.0020345352642579147,
+    -0.004336580389532056,
     0.20043915551313057,
     0.9796944419940162
   ],
@@ -39,9 +39,9 @@
     "translation_motion_pairs": 2863,
     "rotation_motion_pairs": 2514,
     "combined_vectors_kept": 2961,
-    "observability_singular_ratio": 0.0037550151683046354,
+    "observability_singular_ratio": 0.003755015168304633,
     "translation_direction_error_deg_median": 31.56612324541166,
-    "translation_direction_error_deg_p90": 123.00298749972923,
+    "translation_direction_error_deg_p90": 123.00298749972924,
     "translation_rmse_m": 0.4146213096018442,
     "translation_normalized_rmse": 1.637319951907287,
     "translation_scale_ratio_median_odom_over_kiss": 0.6927603982259714,
