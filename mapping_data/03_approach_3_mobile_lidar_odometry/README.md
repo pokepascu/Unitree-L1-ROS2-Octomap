@@ -48,3 +48,7 @@ input cloud             = /fused_cloud
 The `0.10 m` value is an occupancy-map resolution and must not be interpreted as Unitree L1 measurement accuracy.
 
 The fusion publisher associates each incoming LiDAR cloud with the nearest recorded odometry pose within the configured synchronization tolerance; it does not claim continuous-time trajectory interpolation or LiDAR deskew.
+
+## Local evidence mirror
+
+The generated user-facing evidence is now also available directly under `mapping_data/03_approach_3_mobile_lidar_odometry/evidence/`, preserving the relative structure of `results/approach_3/`. In particular, each run's `odometry_lidar_fusion/` RViz build video, final isometric/top/side captures, 3D orbit video, `.bt`, `.ot`, RViz configs and mapping parameters are locally mirrored. Raw MCAP recordings remain referenced from `bags/raw/` and are never duplicated here.

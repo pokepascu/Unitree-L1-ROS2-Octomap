@@ -24,3 +24,7 @@ For both environments, `results/approach_2/<environment>/` contains:
 - `octomap/`: RViz build MP4, isometric/top/side screenshots, real 3D orbit MP4, `map.bt`, `map.ot`, RViz configs and registration metrics.
 
 No undocumented LiDAR extrinsic rotation is introduced by this static registration method.
+
+## Local evidence mirror
+
+The generated user-facing evidence is now also available directly under `mapping_data/02_approach_2_three_static_icp/evidence/`, preserving the relative structure of `results/approach_2/`. RViz2 captures/videos, OctoMap map files, RViz configurations, registration metrics and compact metadata are mirrored; the source MCAP recordings are not duplicated.

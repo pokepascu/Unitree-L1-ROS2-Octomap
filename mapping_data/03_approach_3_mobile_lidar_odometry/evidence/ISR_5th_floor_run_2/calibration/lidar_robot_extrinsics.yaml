@@ -1,0 +1,13 @@
+# Approach 3 LiDAR/robot extrinsic constraints
+base_frame: base_link
+lidar_frame: unilidar_lidar
+translation_m: [0.0, 0.0, 0.0]
+translation_status: known_project_constraint
+rotation_quaternion_xyzw: null
+rotation_status: not_directly_recorded
+rotation_resolution_method: trajectory_hand_eye_from_recorded_odom_and_kiss_icp
+notes: >-
+  Translation is constrained to zero. Rotation must not be assumed identity unless
+  independently confirmed; the Approach 3 pipeline estimates it from relative
+  motions and records quantitative acceptance metrics before any odometry/LiDAR
+  fusion is labelled canonical.

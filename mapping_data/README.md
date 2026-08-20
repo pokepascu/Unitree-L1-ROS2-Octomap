@@ -1,30 +1,38 @@
 # Mapping data organization
 
-This directory is the user-facing organization of the Unitree L1 mapping study. Raw recordings remain immutable in `bags/raw/` and verified stationary segments remain in `study_data/`; `mapping_data/` organizes provenance and points to the canonical generated evidence under `results/` without duplicating multi-hundred-megabyte source recordings.
+`mapping_data/` is the user-facing organization of the Unitree L1 mapping study. The immutable source recordings remain under `bags/raw/`, and verified stationary extracts remain under `study_data/`. Large MCAP source recordings are never duplicated here.
 
-## Layout and current status
+## Layout
 
-- `00_preliminary_data/` — legacy/preliminary HcMR experiment from 2026-08-04, retained as historical evidence and not used as canonical output for the three final approaches.
-- `01_approach_1_single_static/` — **complete** for HcMR and ISR: raw stationary PointCloud2 RViz evidence, raw and conservative-cleaned OctoMaps, fitted RViz views, videos, `.bt`, `.ot`, configs and parameters.
-- `02_approach_2_three_static_icp/` — **complete** for HcMR and ISR: three raw stationary scans, global ICP before/after evidence, registered/merged clouds and final OctoMaps with RViz videos/views and map files.
-- `03_approach_3_mobile_lidar_odometry/` — raw mobile LiDAR, recorded odometry and KISS-ICP v1.3.0 outputs are **complete for HcMR, ISR run 1 and ISR run 2**. Robot/LiDAR translation is fixed to exactly `(0,0,0) m`. A trajectory-derived rotational calibration was attempted on all three runs and rejected by the quantitative quality gates, so canonical odometry+LiDAR OctoMap fusion remains explicitly blocked rather than being generated with an invented rotation. Full metrics are in `results/approach_3/common_extrinsic_rotation.json` and each run's `calibration/` directory.
+- `00_preliminary_data/` — legacy/preliminary HcMR material retained only as historical evidence.
+- `01_approach_1_single_static/` — one verified stationary scan per environment, with local mirrored PointCloud2 and OctoMap evidence.
+- `02_approach_2_three_static_icp/` — three stationary scans per environment, rigid registration by Iterative Closest Point (ICP), merged cloud and OctoMap evidence.
+- `03_approach_3_mobile_lidar_odometry/` — mobile LiDAR, robot odometry, KISS-ICP diagnostics and the fixed-mount odometry + LiDAR OctoMap baseline for HcMR and the two ISR runs.
 
-## Canonical evidence rule
+## Evidence mirror policy
 
-Canonical visual evidence is produced in RViz2. Analytical Matplotlib/Open3D figures may exist as secondary diagnostics but do not replace RViz evidence. Raw evidence is retained; derived cleaned, registered or calibration products are clearly labelled. Unknown or occluded surfaces are never synthesized.
+Each numbered approach contains an `evidence/` tree mirroring the generated evidence from its corresponding `results/approach_*` directory. The mirror keeps RViz2 PNG screenshots, MP4 recordings, OctoMap `.bt`/`.ot` files, RViz configurations, parameters and compact metadata/metrics needed to interpret or reopen the evidence.
 
-## Approach 3 blocker and valid resolution paths
+`results/` remains the computational source of truth. `mapping_data/*/evidence/` is the organized browsing/delivery view. The mirrored files are byte-identical copies before Git staging; MP4 and OctoMap binaries are stored with Git LFS so identical objects are deduplicated.
 
-The translation is not a blocker: `base_link -> unilidar_lidar = (0,0,0) m` is enforced. The remaining blocker is rotational calibration. The three trajectory fits return broadly similar yaw-like rotations but none satisfies the run-level residual/observability acceptance gate, so the common calibration contains `canonical_fusion_allowed: false`.
+No `.mcap` source recording is copied into the evidence mirror.
 
-Valid ways to complete a canonical odometry+LiDAR fusion are:
+## Canonical visual evidence rule
 
-1. recover or measure the real physical robot/LiDAR mounting rotation;
-2. explicitly establish that robot and LiDAR axes are physically co-oriented, if that is in fact the mounting geometry; or
-3. record a dedicated calibration trajectory with stronger non-degenerate motion, then rerun the supplied zero-translation calibration and fusion workflow.
+Canonical visual evidence is produced in RViz2. Analytical Matplotlib/Open3D figures may remain as secondary diagnostics, but do not replace RViz evidence. Raw evidence is retained and derived cleaned/registered/calibration products remain explicitly labelled.
 
-The repository intentionally does not relax these gates merely to force a visually plausible map.
+## Approach 3 fixed-mount baseline
 
-## Source-of-truth data
+The current project working transform for the mobile odometry + LiDAR baseline is constant over each acquisition:
 
-Large MCAP files are not copied into each method directory. Manifests point to the immutable source under `bags/raw/` or to verified segments under `study_data/`. Generated evidence and maps live under `results/` and are referenced from each method README.
+```text
+base_link -> unilidar_lidar
+translation = [0.0, 0.0, 0.0] m
+roll        = 0.0 deg
+pitch       = 0.0 deg
+yaw         = +23.0 deg
+```
+
+The `+23.0 deg` yaw is a user-supported fixed-mount working constraint consistent with the trajectory-derived yaw-like estimates, not an independently metrologically measured calibration. Earlier rejected trajectory-derived calibration fits remain preserved as diagnostics.
+
+The odometry + LiDAR OctoMap baseline uses fixed frame `odom`, OctoMap resolution `0.10 m` and maximum inserted sensor range `15 m`. The `0.10 m` value is occupancy-map resolution, not Unitree L1 ranging accuracy.

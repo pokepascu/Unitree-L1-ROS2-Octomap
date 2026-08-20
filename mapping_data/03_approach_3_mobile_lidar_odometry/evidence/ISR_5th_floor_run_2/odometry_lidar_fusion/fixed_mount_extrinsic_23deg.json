@@ -1,0 +1,18 @@
+{
+  "transform": "base_link_from_unilidar_lidar",
+  "translation_m": [0.0, 0.0, 0.0],
+  "translation_source": "known_project_constraint",
+  "rotation_rpy_deg": [0.0, 0.0, 23.0],
+  "rotation_matrix_base_from_lidar": [
+    [0.9205048534524404, -0.3907311284892738, 0.0],
+    [0.3907311284892738, 0.9205048534524404, 0.0],
+    [0.0, 0.0, 1.0]
+  ],
+  "rotation_quaternion_xyzw_base_from_lidar": [0.0, 0.0, 0.1993679344171972, 0.9799247046208296],
+  "rotation_source": "fixed_mount_working_constraint_user_supported",
+  "rotation_context": "The LiDAR is rigidly fixed to the robot. A constant +23.0 degree yaw is used for continued mapping, consistent with the three trajectory-derived yaw estimates near +20 to +25 degrees.",
+  "metrology_status": "not_independently_measured",
+  "canonical_fusion_allowed": true,
+  "fusion_label": "fixed_mount_23deg_working_baseline",
+  "preserve_rejected_trajectory_calibrations": true
+}

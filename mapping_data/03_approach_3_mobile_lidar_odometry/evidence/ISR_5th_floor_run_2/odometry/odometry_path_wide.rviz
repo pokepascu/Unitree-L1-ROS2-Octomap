@@ -1,0 +1,57 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.15
+      Cell Size: 2
+      Class: rviz_default_plugins/Grid
+      Color: 100; 100; 100
+      Enabled: true
+      Line Style:
+        Line Width: 0.01
+        Value: Lines
+      Name: Grid
+      Plane: XY
+      Plane Cell Count: 60
+      Reference Frame: <Fixed Frame>
+      Value: true
+    - Class: rviz_default_plugins/Path
+      Enabled: true
+      Name: Recorded odometry trajectory
+      Line Style: Lines
+      Line Width: 0.08
+      Buffer Length: 1
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /recorded_odom_path
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 15; 15; 18
+    Fixed Frame: odom
+    Frame Rate: 30
+  Name: root
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 55
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0
+      Name: Wide odometry top-oblique
+      Pitch: 1.25
+      Target Frame: odom
+      Value: Orbit (rviz_default_plugins)
+      Yaw: 0.2
+    Saved: ~
+Window Geometry:
+  Height: 900
+  Width: 1600
+  X: 0
+  Y: 0

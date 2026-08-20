@@ -1,0 +1,57 @@
+{
+  "transform": "base_link_from_unilidar_lidar",
+  "translation_m": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "translation_source": "project_geometry_constraint_from_user",
+  "rotation_matrix_base_from_lidar": [
+    [
+      0.9395997242948795,
+      -0.342236458675129,
+      -0.0051540720302536225
+    ],
+    [
+      0.3422399788398591,
+      0.939612554564499,
+      -0.0002102105329946938
+    ],
+    [
+      0.004914772495144151,
+      -0.0015664157437276986,
+      0.9999866955880155
+    ]
+  ],
+  "rotation_quaternion_xyzw_base_from_lidar": [
+    -0.0003442899811109088,
+    -0.0025561045364102678,
+    0.1737630690974327,
+    0.9847841101540219
+  ],
+  "rotation_source": "derived_hand_eye_alignment_of_recorded_robot_odometry_and_KISS-ICP_relative_motions",
+  "status": "rejected",
+  "canonical_fusion_allowed": false,
+  "metrics": {
+    "synchronized_samples": 5349,
+    "sync_error_s_median": 0.014197587966918945,
+    "sync_error_s_p95": 0.03114504814147949,
+    "translation_motion_pairs": 15703,
+    "rotation_motion_pairs": 7568,
+    "combined_vectors_kept": 23271,
+    "observability_singular_ratio": 0.0022626485887138788,
+    "translation_direction_error_deg_median": 63.72975816658511,
+    "translation_direction_error_deg_p90": 150.06603560773902,
+    "translation_rmse_m": 3.094101791515967,
+    "translation_normalized_rmse": 10.772933307497011,
+    "translation_scale_ratio_median_odom_over_kiss": 0.2694123559036401,
+    "rotation_conjugacy_error_deg_median": 5.681022464237719,
+    "rotation_conjugacy_error_deg_p90": 27.039026068295538
+  },
+  "method_notes": [
+    "No translation is estimated; it is fixed to exactly zero.",
+    "No identity rotation is assumed.",
+    "The estimate is derived from trajectory agreement, not a laboratory extrinsic calibration.",
+    "Canonical odometry/LiDAR fusion is gated by quantitative residual and observability tests."
+  ]
+}

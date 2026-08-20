@@ -27,3 +27,7 @@ For HcMR and ISR, `results/approach_1/octomap/<environment>/` contains both:
 Each map set retains the RViz construction video, isometric/top/side screenshots, 3D RViz orbit video, `map.bt`, full `map.ot`, RViz configurations and parameters/reopen information.
 
 Raw evidence remains the reference. Cleaned data are explicitly derived and never replace the raw acquisition. The source rosbag is never modified.
+
+## Local evidence mirror
+
+The generated user-facing evidence is now also available directly under `mapping_data/01_approach_1_single_static/evidence/`, preserving the relative structure of `results/approach_1/`. This includes RViz2 screenshots/videos, OctoMap `.bt`/`.ot` files, RViz configurations and compact parameters/metadata. The source MCAP recordings remain only under `study_data/`/`bags/raw/`.

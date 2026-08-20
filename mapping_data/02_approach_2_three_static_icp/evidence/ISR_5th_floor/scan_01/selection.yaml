@@ -1,0 +1,19 @@
+approach: approach_2_three_static_icp
+environment: ISR_5th_floor
+scan: scan_01
+source: ISR_5th_floor_run_1
+start: 1786134757712538368
+end: 1786134793011322368
+pose:
+- 1.862
+- -1.07
+- 0.0
+note: Strict stationary interval >30 s.
+duration_s: 35.298784
+message_count: 8892
+topic_counts:
+  /cmd_vel: 9
+  /odom: 704
+  /tf: 705
+  /unilidar/cloud: 272
+  /unilidar/imu: 7202
