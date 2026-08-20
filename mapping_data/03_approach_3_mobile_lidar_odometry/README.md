@@ -7,21 +7,44 @@ Continuous source recordings are referenced, never duplicated:
 
 Each run has a `source.yaml` manifest in this folder. Generated evidence is written under `results/approach_3/<run>/`.
 
-## Robot/LiDAR extrinsic constraint
+## Fixed robot/LiDAR mounting geometry used for the mapping baseline
 
-The translation from `base_link` to `unilidar_lidar` is fixed by the project to exactly:
+The LiDAR is rigidly fixed to the robot, so one constant rigid transform is used throughout each acquisition. The working project geometry is:
 
-`[0.0, 0.0, 0.0] m`
+```text
+base_link -> unilidar_lidar
+translation = [0.0, 0.0, 0.0] m
+roll        = 0.0 deg
+pitch       = 0.0 deg
+yaw         = +23.0 deg
+```
 
-No non-zero LiDAR translation is used anywhere in Approach 3. The rotational extrinsic is not directly recorded in the source TF graph and is therefore not silently set to identity. The pipeline estimates only that rotation from relative-motion agreement between the recorded `/odom` trajectory and KISS-ICP. The estimate is labelled derived calibration and must pass quantitative residual/observability gates before odometry+LiDAR fusion is accepted as canonical.
+The zero translation is a known project constraint. The constant `+23.0 deg` yaw is a user-supported fixed-mount working constraint and is consistent with the three independent trajectory-derived yaw-like estimates (about +20 to +25 deg). It is **not** represented as an independently metrologically measured calibration.
 
-## Evidence groups
+The earlier trajectory hand-eye estimates and their rejected quantitative gates remain preserved under `results/approach_3/<run>/calibration/` and `results/approach_3/common_extrinsic_rotation.json`. They are diagnostic evidence and are not silently rewritten as accepted calibration measurements.
 
-- `raw_lidar/`: raw mobile PointCloud2 RViz video and still evidence;
+## Generated evidence groups
+
+- `raw_lidar/`: raw mobile PointCloud2 RViz evidence;
 - `odometry/`: recorded robot trajectory and TF audit;
 - `kiss_icp/`: independent LiDAR-only KISS-ICP v1.3.0 trajectory/local-map evidence;
-- `calibration/`: zero-translation constraint plus derived rotation estimate and residuals;
-- `odometry_lidar_fusion/`: 0.10 m / 15 m OctoMap and RViz evidence only when calibration is accepted, otherwise an explicit blocker;
-- `loam_like/`: compatibility/calibration status for LiDAR-inertial or LOAM-family methods.
+- `calibration/`: zero-translation constraint plus the earlier trajectory-derived rotation diagnostics and residuals;
+- `odometry_lidar_fusion/`: generated fixed-mount odometry + LiDAR baseline using `(0,0,0) m` and `+23 deg` yaw;
+- `loam_like/`: LiDAR-inertial / LOAM-family method status; no unsupported inertial extrinsic is fabricated.
 
-A missing or rejected rotation calibration is not replaced by a guessed value. The corresponding map remains explicitly blocked and the resolution path is documented.
+For each of the three mobile runs, `odometry_lidar_fusion/` contains the RViz build video, final isometric/top/side RViz captures, a 3D RViz orbit video, `map.bt`, `map.ot`, the RViz configurations, the exact mapping parameters, and a copy of the fixed-mount transform used.
+
+## OctoMap baseline parameters
+
+The odometry + LiDAR baseline uses:
+
+```text
+fixed frame             = odom
+OctoMap resolution      = 0.10 m
+sensor-model max range  = 15.0 m
+input cloud             = /fused_cloud
+```
+
+The `0.10 m` value is an occupancy-map resolution and must not be interpreted as Unitree L1 measurement accuracy.
+
+The fusion publisher associates each incoming LiDAR cloud with the nearest recorded odometry pose within the configured synchronization tolerance; it does not claim continuous-time trajectory interpolation or LiDAR deskew.
