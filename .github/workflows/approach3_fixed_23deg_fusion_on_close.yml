@@ -1,6 +1,10 @@
 name: Approach 3 fixed 23deg mount odometry LiDAR fusion
 
 on:
+  push:
+    branches: [analysis/approach-1-static]
+    paths:
+      - '.github/workflows/approach3_fixed_23deg_fusion_on_close.yml'
   pull_request:
     types: [closed]
     branches: [main]
@@ -14,16 +18,16 @@ concurrency:
 
 jobs:
   fuse_three_mobile_runs:
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-22.04
     timeout-minutes: 180
     steps:
-      - name: Checkout exact PR head
+      - name: Checkout exact working head
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           lfs: false
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Validate fixed mount transform
         shell: bash
