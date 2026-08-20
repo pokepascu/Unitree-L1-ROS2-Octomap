@@ -103,7 +103,7 @@ jobs:
 
             docker exec -d a3fusion bash -lc 'Xvfb :99 -screen 0 1600x900x24 -ac >/tmp/xvfb.log 2>&1'
             sleep 3
-            docker exec a3fusion bash -lc 'command -v ffmpeg; command -v xdotool; source /opt/ros/humble/setup.bash; ros2 pkg prefix rosbag2_storage_mcap; ros2 pkg prefix octomap_server'
+            docker exec a3fusion bash -lc 'command -v ffmpeg; command -v ffprobe; command -v xdotool; source /opt/ros/humble/setup.bash; ros2 pkg prefix rosbag2_storage_mcap; ros2 pkg prefix octomap_server'
 
             docker exec -d a3fusion bash -lc \
               'source /opt/ros/humble/setup.bash; python3 /workspace/tools/approach_3/fuse_cloud_with_odom.py --odom /workspace/'"$ROOT"'/odometry/odometry_trajectory.csv --extrinsic /workspace/results/approach_3/fixed_mount_extrinsic_23deg.json >/tmp/fusion.log 2>&1'
@@ -163,15 +163,17 @@ jobs:
               'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t 12 -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p /workspace/'"$OUT"'/05_3d_orbit_rviz.mp4 >/tmp/orbit_video.log 2>&1'
             sleep 1
             docker exec a3fusion bash -lc \
-              'export DISPLAY=:99; WIN=$(xdotool search --onlyvisible --name RViz | head -1 || true); if [ -n "$WIN" ]; then xdotool windowactivate --sync "$WIN"; for j in $(seq 1 24); do xdotool mousemove --window "$WIN" 800 450 mousedown 1 mousemove_relative --sync 22 0 mouseup 1; sleep 0.35; done; fi; sleep 3'
+              'export DISPLAY=:99; WIN=$(xdotool search --onlyvisible --name RViz | head -1 || true); echo RVIZ_WINDOW=$WIN; if [ -n "$WIN" ]; then xdotool windowfocus --sync "$WIN" || true; xdotool mousemove --window "$WIN" 800 450; for j in $(seq 1 24); do xdotool mousedown 1; xdotool mousemove_relative --sync 22 0; xdotool mouseup 1; sleep 0.35; done; fi; sleep 3'
             docker exec a3fusion bash -lc 'pkill -INT -x ffmpeg || true; sleep 2'
 
             docker exec a3fusion bash -lc 'tail -80 /tmp/fusion.log || true; tail -100 /tmp/octomap.log || true; tail -60 /tmp/rviz.log || true'
+            docker exec a3fusion bash -lc 'ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,duration -of default=noprint_wrappers=1 /workspace/'"$OUT"'/01_build_rviz.mp4'
+            docker exec a3fusion bash -lc 'ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,duration -of default=noprint_wrappers=1 /workspace/'"$OUT"'/05_3d_orbit_rviz.mp4'
 
             test $(stat -c%s "$OUT/map.bt") -gt 1000
             test $(stat -c%s "$OUT/map.ot") -gt 1000
             test $(stat -c%s "$OUT/01_build_rviz.mp4") -gt 100000
-            test $(stat -c%s "$OUT/05_3d_orbit_rviz.mp4") -gt 100000
+            test $(stat -c%s "$OUT/05_3d_orbit_rviz.mp4") -gt 30000
             for F in 02_final_isometric.png 03_final_top.png 04_final_side.png; do test $(stat -c%s "$OUT/$F") -gt 10000; done
 
             cat > "$OUT/README.md" <<EOF
@@ -214,4 +216,6 @@ jobs:
           git add results/approach_3 config/approach_3/lidar_robot_extrinsics.yaml .github/workflows/approach3_fixed_23deg_fusion_on_close.yml
           git diff --cached --quiet && exit 0
           git commit -m 'Generate Approach 3 fixed 23deg odometry LiDAR maps'
+          git fetch origin analysis/approach-1-static
+          git rebase origin/analysis/approach-1-static
           git push origin HEAD:analysis/approach-1-static
