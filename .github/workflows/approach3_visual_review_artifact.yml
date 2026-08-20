@@ -1,24 +1,30 @@
-name: Approach 3 RViz visual review artifact
+name: Approach 3 RViz visual QA
 
 on:
-  pull_request:
-    types: [reopened]
-    branches: [main]
+  push:
+    branches: [analysis/approach-1-static]
+    paths:
+      - '.github/workflows/approach3_visual_review_artifact.yml'
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: approach3-visual-qa
+  cancel-in-progress: true
 
 jobs:
-  package_rviz_screenshots:
+  review_rviz_screenshots:
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout current PR head
+      - name: Checkout current branch head
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           lfs: false
-          ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Verify all nine canonical screenshots
+      - name: Verify canonical screenshots
         shell: bash
         run: |
           set -euxo pipefail
@@ -30,13 +36,149 @@ jobs:
             done
           done
 
-      - name: Upload RViz screenshots for visual inspection
+      - name: Analyze RViz pixels and write QA report
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 -m pip install --quiet pillow numpy scipy
+          python3 - <<'PY'
+          from pathlib import Path
+          import numpy as np
+          from PIL import Image
+          from scipy import ndimage
+
+          runs = ["HcMR_lab", "ISR_5th_floor_run_1", "ISR_5th_floor_run_2"]
+          views = [
+              ("isometric", "02_final_isometric.png"),
+              ("top", "03_final_top.png"),
+              ("side", "04_final_side.png"),
+          ]
+          chars = " .:-=+*#%@"
+          report = []
+          report += [
+              "# Approach 3 RViz visual QA",
+              "",
+              "This is an automated QA of the actual canonical RViz PNG captures. It is a diagnostic and does not replace the screenshots themselves.",
+              "",
+              "Working extrinsic: translation `(0,0,0) m`, roll `0 deg`, pitch `0 deg`, yaw `+23.0 deg`, fixed for the rigid LiDAR mount.",
+              "",
+              "The viewport analysis crops the left RViz display panel and toolbar, estimates the dominant dark background from the viewport corners, detects pixels that differ materially from that background, and separately tracks chromatic pixels likely to contain map/axes/path content. The test is intended to catch blank, clipped, or grossly under-filled captures; it is not a metrological map-quality score.",
+              "",
+          ]
+
+          def ascii_mask(mask, h=32, w=72):
+              H, W = mask.shape
+              yy = np.linspace(0, H, h + 1, dtype=int)
+              xx = np.linspace(0, W, w + 1, dtype=int)
+              lines=[]
+              for i in range(h):
+                  row=[]
+                  for j in range(w):
+                      b=mask[yy[i]:yy[i+1], xx[j]:xx[j+1]]
+                      v=float(b.mean()) if b.size else 0.0
+                      idx=min(len(chars)-1, int(round(v*(len(chars)-1)*3.2)))
+                      row.append(chars[idx])
+                  lines.append(''.join(row).rstrip())
+              return '\n'.join(lines)
+
+          for run in runs:
+              report += [f"## {run}", ""]
+              top_ascii = None
+              run_pass = True
+              for view, fn in views:
+                  p=Path("results/approach_3")/run/"odometry_lidar_fusion"/fn
+                  im=Image.open(p).convert("RGB")
+                  a=np.asarray(im, dtype=np.float32)/255.0
+                  H,W=a.shape[:2]
+                  # RViz viewport: remove display panel (~300 px), top toolbar and bottom strip.
+                  x0=min(320, max(0,W//5)); y0=min(55,max(0,H//16)); y1=max(y0+1,H-35)
+                  v=a[y0:y1, x0:W, :]
+                  vh,vw=v.shape[:2]
+                  # Robust background from image corners inside viewport.
+                  patches=np.concatenate([
+                      v[:60,:60].reshape(-1,3), v[:60,-60:].reshape(-1,3),
+                      v[-60:,:60].reshape(-1,3), v[-60:,-60:].reshape(-1,3)
+                  ],axis=0)
+                  bg=np.median(patches,axis=0)
+                  dist=np.linalg.norm(v-bg[None,None,:],axis=2)
+                  vmax=v.max(axis=2); vmin=v.min(axis=2)
+                  sat=(vmax-vmin)/(vmax+1e-6)
+                  visible=dist>0.12
+                  chromatic=(sat>0.18)&(vmax>0.20)&visible
+                  # Remove tiny isolated noise for geometric occupancy proxy.
+                  geo=ndimage.binary_opening(visible, structure=np.ones((2,2)))
+                  geo=ndimage.binary_closing(geo, structure=np.ones((3,3)))
+                  labels,n=ndimage.label(geo)
+                  sizes=np.bincount(labels.ravel()) if n else np.array([0])
+                  comp_sizes=sizes[1:] if len(sizes)>1 else np.array([],dtype=int)
+                  large=comp_sizes[comp_sizes>=30]
+                  largest=int(large.max()) if large.size else 0
+                  visible_fraction=float(visible.mean())
+                  chromatic_fraction=float(chromatic.mean())
+                  if geo.any():
+                      ys,xs=np.nonzero(geo)
+                      bx0,bx1=int(xs.min()),int(xs.max()); by0,by1=int(ys.min()),int(ys.max())
+                      bbox_w=(bx1-bx0+1)/vw; bbox_h=(by1-by0+1)/vh
+                      cx=float(xs.mean()/vw); cy=float(ys.mean()/vh)
+                  else:
+                      bbox_w=bbox_h=cx=cy=0.0
+                  # Conservative capture gate, not a map-quality claim.
+                  passed=(W>=1200 and H>=700 and visible_fraction>0.015 and bbox_w>0.20 and bbox_h>0.12 and largest>100)
+                  run_pass &= passed
+                  report += [
+                      f"### {view}",
+                      "",
+                      f"- image: `{W}x{H}` px",
+                      f"- viewport non-background fraction: `{100*visible_fraction:.2f}%`",
+                      f"- chromatic-content fraction: `{100*chromatic_fraction:.2f}%`",
+                      f"- visible-content bbox coverage: `{100*bbox_w:.1f}% x {100*bbox_h:.1f}%` of cropped viewport",
+                      f"- visible-content centroid: `({cx:.3f}, {cy:.3f})` in normalized cropped viewport coordinates",
+                      f"- connected components >=30 px: `{len(large)}`; largest component: `{largest}` px",
+                      f"- capture QA gate: `{'PASS' if passed else 'FAIL'}`",
+                      "",
+                  ]
+                  if view=="top":
+                      # Downsample chromatic OR visible geometry for text-only inspection.
+                      top_ascii=ascii_mask(geo | chromatic)
+              report += [f"**Run capture status: {'PASS' if run_pass else 'FAIL'}**", ""]
+              report += ["### Top-view occupancy/geometry proxy (ASCII)", "", "```text", top_ascii or "<empty>", "```", ""]
+
+          overall = all("capture QA gate: `FAIL`" not in line for line in report)
+          report += [
+              "## Overall automated capture result",
+              "",
+              f"**{'PASS' if overall else 'FAIL'}**",
+              "",
+              "A PASS establishes that the RViz captures are non-empty and materially fill the viewport in all three views. It does not prove absolute extrinsic accuracy; the +23 deg yaw remains the documented fixed-mount working constraint.",
+          ]
+          out=Path("results/approach_3/VISUAL_QA.md")
+          out.write_text("\n".join(report)+"\n", encoding="utf-8")
+          print(out.read_text())
+          if not overall:
+              raise SystemExit("one or more RViz captures failed the automated visual QA gate")
+          PY
+
+      - name: Upload screenshots and report
         uses: actions/upload-artifact@v4
         with:
-          name: approach3-fixed23-rviz-screenshots
+          name: approach3-fixed23-rviz-visual-qa
           path: |
+            results/approach_3/VISUAL_QA.md
             results/approach_3/HcMR_lab/odometry_lidar_fusion/*.png
             results/approach_3/ISR_5th_floor_run_1/odometry_lidar_fusion/*.png
             results/approach_3/ISR_5th_floor_run_2/odometry_lidar_fusion/*.png
           if-no-files-found: error
           retention-days: 7
+
+      - name: Commit QA report
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add results/approach_3/VISUAL_QA.md
+          git diff --cached --quiet && exit 0
+          git commit -m 'Add automated visual QA for Approach 3 RViz evidence'
+          git fetch origin analysis/approach-1-static
+          git rebase origin/analysis/approach-1-static
+          git push origin HEAD:analysis/approach-1-static
