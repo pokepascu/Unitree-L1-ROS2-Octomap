@@ -1,0 +1,141 @@
+name: Approach 3 observable trajectory-fitted RViz QA
+
+on:
+  pull_request:
+    types: [synchronize]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: approach3-visual-qa
+  cancel-in-progress: true
+
+jobs:
+  refit_and_review:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: false
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Pull final map.bt files and install QA dependencies
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 -m pip install --quiet pillow numpy scipy
+          git lfs install
+          git lfs pull --include='results/approach_3/*/odometry_lidar_fusion/map.bt'
+          for RUN in HcMR_lab ISR_5th_floor_run_1 ISR_5th_floor_run_2; do
+            test $(stat -c%s "results/approach_3/$RUN/odometry_lidar_fusion/map.bt") -gt 1000
+          done
+
+      - name: Compute trajectory-fitted RViz camera configurations
+        shell: bash
+        run: |
+          set -euxo pipefail
+          for RUN in HcMR_lab ISR_5th_floor_run_1 ISR_5th_floor_run_2; do
+            python3 tools/approach_3/refit_and_qa_rviz.py prepare \
+              --odom "results/approach_3/$RUN/odometry/odometry_trajectory.csv" \
+              --out "results/approach_3/$RUN/odometry_lidar_fusion" \
+              --sensor-range 15.0
+          done
+
+      - name: Build ROS 2 RViz image
+        shell: bash
+        run: |
+          set -euxo pipefail
+          docker build -t unitree-l1-evidence -f docker/Dockerfile .
+
+      - name: Reopen saved maps and recapture all final RViz views
+        shell: bash
+        run: |
+          set -euxo pipefail
+          capture_run () {
+            RUN="$1"
+            ROOT="results/approach_3/$RUN"
+            OUT="$ROOT/odometry_lidar_fusion"
+            CSV="$ROOT/odometry/odometry_trajectory.csv"
+
+            docker run -d --rm --name a3view --network host -v "$PWD:/workspace" unitree-l1-evidence sleep infinity
+            cleanup () { docker rm -f a3view >/dev/null 2>&1 || true; }
+            trap cleanup RETURN
+            docker exec -d a3view bash -lc 'Xvfb :99 -screen 0 1600x900x24 -ac >/tmp/xvfb.log 2>&1'; sleep 3
+            docker exec -d a3view bash -lc 'source /opt/ros/humble/setup.bash; ros2 run octomap_server octomap_server_node --ros-args -p octomap_path:=/workspace/'"$OUT"'/map.bt -p frame_id:=odom >/tmp/map.log 2>&1'; sleep 5
+            docker exec -d a3view bash -lc 'source /opt/ros/humble/setup.bash; python3 /workspace/tools/approach_3/publish_odometry_path.py --csv /workspace/'"$CSV"' --hold 180 >/tmp/path.log 2>&1'; sleep 2
+
+            capture_view () {
+              VIEW="$1"; PNG="$2"
+              docker exec a3view bash -lc 'pkill -x rviz2 || true'; sleep 2
+              docker exec -d a3view bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_'"$VIEW"'.rviz >/tmp/rviz_'"$VIEW"'.log 2>&1'; sleep 7
+              docker exec a3view bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$OUT"'/'"$PNG"' >/dev/null 2>&1'
+            }
+            capture_view isometric 02_final_isometric.png
+            capture_view top 03_final_top.png
+            capture_view side 04_final_side.png
+
+            docker exec a3view bash -lc 'pkill -x rviz2 || true'; sleep 2
+            docker exec -d a3view bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_isometric.rviz >/tmp/rviz_orbit.log 2>&1'; sleep 7
+            docker exec -d a3view bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t 12 -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p /workspace/'"$OUT"'/05_3d_orbit_rviz.mp4 >/tmp/orbit.log 2>&1'; sleep 1
+            docker exec a3view bash -lc 'export DISPLAY=:99; WIN=$(xdotool search --onlyvisible --name RViz | head -1 || true); echo RVIZ_WINDOW=$WIN; if [ -n "$WIN" ]; then xdotool windowfocus --sync "$WIN" || true; xdotool mousemove --window "$WIN" 800 450; for j in $(seq 1 24); do xdotool mousedown 1; xdotool mousemove_relative --sync 22 0; xdotool mouseup 1; sleep 0.35; done; fi; sleep 3'
+            docker exec a3view bash -lc 'pkill -INT -x ffmpeg || true; sleep 2; ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,duration -of default=noprint_wrappers=1 /workspace/'"$OUT"'/05_3d_orbit_rviz.mp4'
+            docker exec a3view bash -lc 'echo ---MAP---; tail -60 /tmp/map.log || true; echo ---TOP---; tail -60 /tmp/rviz_top.log || true'
+            test $(stat -c%s "$OUT/05_3d_orbit_rviz.mp4") -gt 30000
+            docker rm -f a3view
+            trap - RETURN
+          }
+
+          capture_run HcMR_lab
+          capture_run ISR_5th_floor_run_1
+          capture_run ISR_5th_floor_run_2
+
+      - name: Run final blue-OctoMap visibility QA
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 tools/approach_3/refit_and_qa_rviz.py qa \
+            --root results/approach_3 \
+            --report results/approach_3/VISUAL_QA_V3.md
+
+      - name: Upload final visual evidence artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: approach3-fixed23-rviz-trajectory-fitted-observable
+          path: |
+            results/approach_3/VISUAL_QA_V3.md
+            results/approach_3/*/odometry_lidar_fusion/02_final_isometric.png
+            results/approach_3/*/odometry_lidar_fusion/03_final_top.png
+            results/approach_3/*/odometry_lidar_fusion/04_final_side.png
+            results/approach_3/*/odometry_lidar_fusion/05_3d_orbit_rviz.mp4
+            results/approach_3/*/odometry_lidar_fusion/camera_fit.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Commit corrected views and QA
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git lfs install
+          git add results/approach_3/VISUAL_QA_V3.md tools/approach_3/refit_and_qa_rviz.py
+          for RUN in HcMR_lab ISR_5th_floor_run_1 ISR_5th_floor_run_2; do
+            git add "results/approach_3/$RUN/odometry_lidar_fusion/02_final_isometric.png" \
+                    "results/approach_3/$RUN/odometry_lidar_fusion/03_final_top.png" \
+                    "results/approach_3/$RUN/odometry_lidar_fusion/04_final_side.png" \
+                    "results/approach_3/$RUN/odometry_lidar_fusion/05_3d_orbit_rviz.mp4" \
+                    "results/approach_3/$RUN/odometry_lidar_fusion/camera_fit.json" \
+                    "results/approach_3/$RUN/odometry_lidar_fusion/octomap_isometric.rviz" \
+                    "results/approach_3/$RUN/odometry_lidar_fusion/octomap_top.rviz" \
+                    "results/approach_3/$RUN/odometry_lidar_fusion/octomap_side.rviz"
+          done
+          git diff --cached --quiet && exit 0
+          git commit -m 'Refit and validate final Approach 3 RViz evidence'
+          git fetch origin analysis/approach-1-static
+          git rebase origin/analysis/approach-1-static
+          git push origin HEAD:analysis/approach-1-static
