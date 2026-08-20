@@ -62,6 +62,16 @@ jobs:
             OUT="$ROOT/odometry_lidar_fusion"
             CSV="$ROOT/odometry/odometry_trajectory.csv"
 
+            # The container runs as uid 1000 while the GitHub checkout is owned by
+            # the runner. The mapping workflow created these files in a fresh
+            # writable directory; this recapture workflow overwrites existing
+            # evidence, so explicitly restore write permission before mounting it.
+            chmod -R a+rwX "$OUT"
+            rm -f "$OUT/02_final_isometric.png" \
+                  "$OUT/03_final_top.png" \
+                  "$OUT/04_final_side.png" \
+                  "$OUT/05_3d_orbit_rviz.mp4"
+
             docker run -d --rm --name a3view --network host -v "$PWD:/workspace" unitree-l1-evidence sleep infinity
             cleanup () { docker rm -f a3view >/dev/null 2>&1 || true; }
             trap cleanup RETURN
@@ -73,7 +83,7 @@ jobs:
               VIEW="$1"; PNG="$2"
               docker exec a3view bash -lc 'pkill -x rviz2 || true'; sleep 2
               docker exec -d a3view bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_'"$VIEW"'.rviz >/tmp/rviz_'"$VIEW"'.log 2>&1'; sleep 7
-              docker exec a3view bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$OUT"'/'"$PNG"' >/dev/null 2>&1'
+              docker exec a3view bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -i :99 -frames:v 1 /workspace/'"$OUT"'/'"$PNG"' >/tmp/capture.log 2>&1; rc=$?; cat /tmp/capture.log; exit $rc'
             }
             capture_view isometric 02_final_isometric.png
             capture_view top 03_final_top.png
@@ -83,7 +93,7 @@ jobs:
             docker exec -d a3view bash -lc 'export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1; source /opt/ros/humble/setup.bash; rviz2 -d /workspace/'"$OUT"'/octomap_isometric.rviz >/tmp/rviz_orbit.log 2>&1'; sleep 7
             docker exec -d a3view bash -lc 'export DISPLAY=:99; ffmpeg -y -f x11grab -video_size 1600x900 -framerate 20 -i :99 -t 12 -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p /workspace/'"$OUT"'/05_3d_orbit_rviz.mp4 >/tmp/orbit.log 2>&1'; sleep 1
             docker exec a3view bash -lc 'export DISPLAY=:99; WIN=$(xdotool search --onlyvisible --name RViz | head -1 || true); echo RVIZ_WINDOW=$WIN; if [ -n "$WIN" ]; then xdotool windowfocus --sync "$WIN" || true; xdotool mousemove --window "$WIN" 800 450; for j in $(seq 1 24); do xdotool mousedown 1; xdotool mousemove_relative --sync 22 0; xdotool mouseup 1; sleep 0.35; done; fi; sleep 3'
-            docker exec a3view bash -lc 'pkill -INT -x ffmpeg || true; sleep 2; ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,duration -of default=noprint_wrappers=1 /workspace/'"$OUT"'/05_3d_orbit_rviz.mp4'
+            docker exec a3view bash -lc 'pkill -INT -x ffmpeg || true; sleep 2; cat /tmp/orbit.log || true; ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,duration -of default=noprint_wrappers=1 /workspace/'"$OUT"'/05_3d_orbit_rviz.mp4'
             docker exec a3view bash -lc 'echo ---MAP---; tail -60 /tmp/map.log || true; echo ---TOP---; tail -60 /tmp/rviz_top.log || true'
             test $(stat -c%s "$OUT/05_3d_orbit_rviz.mp4") -gt 30000
             docker rm -f a3view
