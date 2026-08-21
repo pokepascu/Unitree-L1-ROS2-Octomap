@@ -1,0 +1,38 @@
+name: Report asset bundle
+on:
+  push:
+    branches: [report-assets-temp]
+    paths: ['.github/workflows/report_asset_bundle.yml']
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/report_asset_bundle.yml']
+permissions:
+  contents: read
+jobs:
+  bundle:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: report-assets-temp
+          lfs: true
+      - name: Prepare report assets
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p report_assets
+          cp mapping_data/01_approach_1_single_static/evidence/rviz_evidence/HcMR_lab/pointcloud/02_final_wide_isometric.png report_assets/a1_pointcloud_isometric.png
+          cp mapping_data/01_approach_1_single_static/evidence/octomap/HcMR_lab/raw_pointcloud/02_final_wide_isometric.png report_assets/a1_octomap_isometric.png
+          cp mapping_data/02_approach_2_three_static_icp/evidence/HcMR_lab/merged_cloud/01_merged_isometric.png report_assets/a2_pointcloud_isometric.png
+          cp mapping_data/02_approach_2_three_static_icp/evidence/HcMR_lab/octomap/02_final_isometric.png report_assets/a2_octomap_isometric.png
+          cp mapping_data/03_approach_3_mobile_lidar_odometry/evidence/HcMR_lab/raw_lidar/02_raw_instantaneous_wide.png report_assets/a3_pointcloud_instantaneous.png
+          cp mapping_data/03_approach_3_mobile_lidar_odometry/evidence/HcMR_lab/odometry_lidar_fusion/02_final_isometric.png report_assets/a3_octomap_isometric.png
+          cp mapping_data/03_approach_3_mobile_lidar_odometry/evidence/HcMR_lab/odometry_lidar_fusion/03_final_top.png report_assets/a3_octomap_top.png
+          cp mapping_data/02_approach_2_three_static_icp/evidence/HcMR_lab/icp/01_before_registration.png report_assets/a2_icp_before.png || true
+          cp mapping_data/02_approach_2_three_static_icp/evidence/HcMR_lab/icp/02_after_registration.png report_assets/a2_icp_after.png || true
+          file report_assets/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stage-report-assets
+          path: report_assets/
+          retention-days: 7
