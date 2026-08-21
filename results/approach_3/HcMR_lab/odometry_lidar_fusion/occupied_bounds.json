@@ -4,7 +4,7 @@
     "odom"
   ],
   "marker_count_with_points": 2,
-  "occupied_cell_centers_count": 52481,
+  "occupied_cell_centers_count": 52953,
   "marker_types": [
     6
   ],
@@ -25,24 +25,24 @@
   ],
   "occupied_bounds_m": {
     "min_xyz": [
-      -2.7,
+      -2.6,
       -7.5,
       0.0
     ],
     "max_xyz": [
-      22.3,
+      26.3,
       8.9,
-      4.0
+      3.7
     ],
     "center_xyz": [
-      9.8,
+      11.85,
       0.7000000000000002,
-      2.0
+      1.85
     ],
     "span_xyz": [
-      25.0,
+      28.900000000000002,
       16.4,
-      4.0
+      3.7
     ]
   },
   "method": "MarkerArray point centers transformed by marker pose and expanded by half marker scale"

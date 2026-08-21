@@ -1,0 +1,47 @@
+name: Collect report visual assets
+
+on:
+  push:
+    branches: [analysis/approach-1-static]
+    paths: ['.github/workflows/collect_report_assets.yml']
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/collect_report_assets.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: analysis/approach-1-static
+          lfs: true
+      - name: Collect canonical report images
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p report_assets/A1 report_assets/A2 report_assets/A3
+          cp mapping_data/01_approach_1_single_static/evidence/rviz_evidence/HcMR_lab/pointcloud/02_final_wide_isometric.png report_assets/A1/pointcloud_isometric.png
+          cp mapping_data/01_approach_1_single_static/evidence/rviz_evidence/HcMR_lab/pointcloud/03_final_wide_top.png report_assets/A1/pointcloud_top.png
+          cp mapping_data/01_approach_1_single_static/evidence/octomap/HcMR_lab/raw_pointcloud/02_final_wide_isometric.png report_assets/A1/octomap_isometric.png
+          cp mapping_data/01_approach_1_single_static/evidence/octomap/HcMR_lab/raw_pointcloud/03_final_wide_top.png report_assets/A1/octomap_top.png
+          cp mapping_data/02_approach_2_three_static_icp/evidence/HcMR_lab/icp/01_before_global_icp.png report_assets/A2/icp_before.png
+          cp mapping_data/02_approach_2_three_static_icp/evidence/HcMR_lab/icp/02_after_global_icp.png report_assets/A2/icp_after.png
+          cp mapping_data/02_approach_2_three_static_icp/evidence/HcMR_lab/merged_cloud/01_merged_isometric.png report_assets/A2/pointcloud_isometric.png
+          cp mapping_data/02_approach_2_three_static_icp/evidence/HcMR_lab/merged_cloud/02_merged_top.png report_assets/A2/pointcloud_top.png
+          cp mapping_data/02_approach_2_three_static_icp/evidence/HcMR_lab/octomap/02_final_isometric.png report_assets/A2/octomap_isometric.png
+          cp mapping_data/02_approach_2_three_static_icp/evidence/HcMR_lab/octomap/03_final_top.png report_assets/A2/octomap_top.png
+          cp mapping_data/03_approach_3_mobile_lidar_odometry/evidence/HcMR_lab/raw_lidar/02_raw_instantaneous_wide.png report_assets/A3/pointcloud_instantaneous.png
+          cp mapping_data/03_approach_3_mobile_lidar_odometry/evidence/HcMR_lab/odometry_lidar_fusion/02_final_isometric.png report_assets/A3/octomap_isometric.png
+          cp mapping_data/03_approach_3_mobile_lidar_odometry/evidence/HcMR_lab/odometry_lidar_fusion/03_final_top.png report_assets/A3/octomap_top.png
+          find report_assets -type f -maxdepth 3 -print -exec file {} \;
+      - uses: actions/upload-artifact@v4
+        with:
+          name: internship-report-assets
+          path: report_assets/
+          if-no-files-found: error
+          retention-days: 2
